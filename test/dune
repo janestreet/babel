@@ -1,0 +1,3 @@
+(library (name babel_test)
+ (libraries async core babel core_kernel.reversed_list)
+ (preprocess (pps ppx_jane)))
