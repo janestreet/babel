@@ -11,7 +11,12 @@ build: [
 ]
 depends: [
   "ocaml" {>= "4.08.0"}
-  "dune" {>= "2.0.0"}
+  "async_rpc_kernel"
+  "core"
+  "ppx_jane"
+  "streamable"
+  "tilde_f"
+  "dune"             {>= "2.0.0"}
 ]
 synopsis: "A library for defining Rpcs that can evolve over time without breaking backward compatibility."
 description: "

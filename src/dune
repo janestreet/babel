@@ -1,0 +1,3 @@
+(library (name babel) (public_name babel)
+ (libraries async_rpc_kernel core streamable tilde_f)
+ (preprocess (pps ppx_jane)))
