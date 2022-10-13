@@ -28,7 +28,7 @@ open Strategy
 
 type 'a t = 'a Strategy.t list
 
-let map t = Tilde_f.Let_syntax.(List.map t >>= Strategy.map)
+let map t ~f = List.map t ~f:(fun s -> Strategy.map ~f s)
 let shapes t = List.map t ~f:Strategy.shape
 let supported_rpcs t = List.map t ~f:Strategy.rpc
 let descriptions t = List.map (shapes t) ~f:fst
@@ -81,7 +81,8 @@ module Rpc = struct
   let map_query = map_query
 
   let map_response t =
-    Tilde_f.Let_syntax.(map_response t >>= Deferred.map >>= Or_error.map)
+    Tilde_f.Let_syntax.(
+      map_response t >>= Deferred.map >>= Tilde_f.of_local_k Or_error.map)
   ;;
 end
 
@@ -91,7 +92,10 @@ module Rpc' = struct
   let singleton rpc = [ { dispatch = Rpc.Rpc.dispatch' rpc; rpc = Rpc rpc } ]
   let add = adder ~f:singleton
   let map_query = map_query
-  let map_response t = Tilde_f.Let_syntax.(map_response t >>= Deferred.map >>= Result.map)
+
+  let map_response t =
+    Tilde_f.Let_syntax.(map_response t >>= Deferred.map >>= Tilde_f.of_local_k Result.map)
+  ;;
 end
 
 module Rpc_exn = struct
@@ -114,15 +118,18 @@ module Pipe_rpc = struct
 
   let map_error t =
     Tilde_f.Let_syntax.(
-      map_response t >>= Deferred.map >>= Or_error.map >>= Result.map_error)
+      map_response t
+      >>= Deferred.map
+      >>= Tilde_f.of_local_k Or_error.map
+      >>= Tilde_f.of_local_k Result.map_error)
   ;;
 
   let filter_map_response t =
     let open Tilde_f.Let_syntax in
     map_response t
     >>= Deferred.map
-    >>= Or_error.map
-    >>= Result.map
+    >>= Tilde_f.of_local_k Or_error.map
+    >>= Tilde_f.of_local_k Result.map
     >>= Tuple2.map_fst
     >>= Pipe.filter_map ?max_queue_length:None
   ;;
@@ -131,8 +138,8 @@ module Pipe_rpc = struct
     let open Tilde_f.Let_syntax in
     map_response t
     >>= Deferred.map
-    >>= Or_error.map
-    >>= Result.map
+    >>= Tilde_f.of_local_k Or_error.map
+    >>= Tilde_f.of_local_k Result.map
     >>= Tuple2.map_fst
     >>= Pipe.map
   ;;
@@ -202,8 +209,8 @@ module Pipe_rpc_iter = struct
       (let open Tilde_f.Let_syntax in
        Rpc.Pipe_rpc.dispatch_iter rpc connection query ~f
        |> Deferred.map
-       >>= Or_error.map
-       >>= Result.map)
+       >>= Tilde_f.of_local_k Or_error.map
+       >>= Tilde_f.of_local_k Result.map)
         ~f:(fun id -> Id.T { rpc; connection; id })
     in
     [ { dispatch; rpc = Pipe rpc } ]
@@ -217,8 +224,8 @@ module Pipe_rpc_iter = struct
     map_response t
     >>= Generator.map
     >>= Deferred.map
-    >>= Or_error.map
-    >>= Result.map_error
+    >>= Tilde_f.of_local_k Or_error.map
+    >>= Tilde_f.of_local_k Result.map_error
   ;;
 
   let map_response t =
@@ -238,15 +245,19 @@ module State_rpc = struct
 
   let map_state t =
     Tilde_f.Let_syntax.(
-      map_response t >>= Deferred.map >>= Or_error.map >>= Result.map >>= Tuple3.map_fst)
+      map_response t
+      >>= Deferred.map
+      >>= Tilde_f.of_local_k Or_error.map
+      >>= Tilde_f.of_local_k Result.map
+      >>= Tuple3.map_fst)
   ;;
 
   let filter_map_update t =
     let open Tilde_f.Let_syntax in
     map_response t
     >>= Deferred.map
-    >>= Or_error.map
-    >>= Result.map
+    >>= Tilde_f.of_local_k Or_error.map
+    >>= Tilde_f.of_local_k Result.map
     >>= Tuple3.map_snd
     >>= Pipe.filter_map ?max_queue_length:None
   ;;
@@ -255,15 +266,18 @@ module State_rpc = struct
     let open Tilde_f.Let_syntax in
     map_response t
     >>= Deferred.map
-    >>= Or_error.map
-    >>= Result.map
+    >>= Tilde_f.of_local_k Or_error.map
+    >>= Tilde_f.of_local_k Result.map
     >>= Tuple3.map_snd
     >>= Pipe.map
   ;;
 
   let map_error t =
     Tilde_f.Let_syntax.(
-      map_response t >>= Deferred.map >>= Or_error.map >>= Result.map_error)
+      map_response t
+      >>= Deferred.map
+      >>= Tilde_f.of_local_k Or_error.map
+      >>= Tilde_f.of_local_k Result.map_error)
   ;;
 end
 
@@ -304,7 +318,8 @@ module Streamable_plain_rpc = struct
   let map_query = map_query
 
   let map_response t =
-    Tilde_f.Let_syntax.(map_response t >>= Deferred.map >>= Or_error.map)
+    Tilde_f.Let_syntax.(
+      map_response t >>= Deferred.map >>= Tilde_f.of_local_k Or_error.map)
   ;;
 end
 
@@ -322,12 +337,13 @@ module Streamable_pipe_rpc = struct
     Tilde_f.Let_syntax.(
       map_response t
       >>= Deferred.map
-      >>= Or_error.map
+      >>= Tilde_f.of_local_k Or_error.map
       >>= Pipe.filter_map ?max_queue_length:None)
   ;;
 
   let map_response t =
-    Tilde_f.Let_syntax.(map_response t >>= Deferred.map >>= Or_error.map >>= Pipe.map)
+    Tilde_f.Let_syntax.(
+      map_response t >>= Deferred.map >>= Tilde_f.of_local_k Or_error.map >>= Pipe.map)
   ;;
 end
 
@@ -343,20 +359,27 @@ module Streamable_state_rpc = struct
 
   let map_state t =
     Tilde_f.Let_syntax.(
-      map_response t >>= Deferred.map >>= Or_error.map >>= Tuple2.map_fst)
+      map_response t
+      >>= Deferred.map
+      >>= Tilde_f.of_local_k Or_error.map
+      >>= Tuple2.map_fst)
   ;;
 
   let filter_map_update t =
     Tilde_f.Let_syntax.(
       map_response t
       >>= Deferred.map
-      >>= Or_error.map
+      >>= Tilde_f.of_local_k Or_error.map
       >>= Tuple2.map_snd
       >>= Pipe.filter_map ?max_queue_length:None)
   ;;
 
   let map_update t =
     Tilde_f.Let_syntax.(
-      map_response t >>= Deferred.map >>= Or_error.map >>= Tuple2.map_snd >>= Pipe.map)
+      map_response t
+      >>= Deferred.map
+      >>= Tilde_f.of_local_k Or_error.map
+      >>= Tuple2.map_snd
+      >>= Pipe.map)
   ;;
 end
