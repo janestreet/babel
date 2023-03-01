@@ -14,19 +14,22 @@ type -_ t
 
     {[
       val implement_multi
-        :  ('a -> 'b) t
+        :  ?on_exception:Rpc.On_exception.t
+        -> ('a -> 'b) t
         -> f:('s -> Rpc.Description.t -> 'a -> 'b)
         -> 's Rpc.Implementation.t list Or_error.t
     ]}
 
     Returns an error if any rpcs are duplicated. *)
 val implement_multi
-  :  'a t
+  :  ?on_exception:Rpc.On_exception.t
+  -> 'a t
   -> f:('s -> Rpc.Description.t -> 'a)
   -> 's Rpc.Implementation.t list Or_error.t
 
 val implement_multi_exn
-  :  'a t
+  :  ?on_exception:Rpc.On_exception.t
+  -> 'a t
   -> f:('s -> Rpc.Description.t -> 'a)
   -> 's Rpc.Implementation.t list
 

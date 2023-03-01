@@ -77,6 +77,9 @@ module Group : sig
   (** Write a message to all direct writers in the group without waiting for flushed. *)
   val write_without_pushback : 'a t -> 'a -> unit
 
+  (** Number of elements in the group *)
+  val length : _ t -> int
+
 
   module For_testing : sig
     val num_subgroups : _ t -> int

@@ -18,6 +18,7 @@ depends: [
   "tilde_f"
   "dune"             {>= "2.0.0"}
 ]
+available: arch != "arm32" & arch != "x86_32"
 synopsis: "A library for defining Rpcs that can evolve over time without breaking backward compatibility."
 description: "
 A library for defining Rpcs that can evolve over time without breaking backward compatibility.

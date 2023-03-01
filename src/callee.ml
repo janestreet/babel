@@ -10,12 +10,15 @@ end
 
 module Implementer = struct
   type 'a t =
-    { implement : 's. ('s -> 'a) -> 's Rpc.Implementation.t
+    { implement :
+        's. ?on_exception:Rpc.On_exception.t -> ('s -> 'a) -> 's Rpc.Implementation.t
     ; rpc : Generic_rpc.t
     }
 
   let map { implement; rpc } ~f =
-    let implement implementation = implement (fun s -> f (implementation s)) in
+    let implement ?on_exception implementation =
+      implement ?on_exception (fun s -> f (implementation s))
+    in
     { implement; rpc }
   ;;
 end
@@ -45,14 +48,14 @@ let validate (t : _ t) : _ Validated.t Or_error.t =
   |> Or_error.combine_errors
 ;;
 
-let implement_multi t ~f =
+let implement_multi ?on_exception t ~f =
   let open Or_error.Let_syntax in
   let%map validated = validate t in
   List.map validated ~f:(fun (description, implementer) ->
-    implementer.implement (fun s -> f s description))
+    implementer.implement ?on_exception (fun s -> f s description))
 ;;
 
-let implement_multi_exn t ~f = ok_exn (implement_multi t ~f)
+let implement_multi_exn ?on_exception t ~f = ok_exn (implement_multi ?on_exception t ~f)
 
 let shapes t =
   let open Or_error.Let_syntax in
@@ -82,7 +85,8 @@ let print_shapes t =
 ;;
 
 let map t =
-  Tilde_f.Let_syntax.(Map.map t >>= Tilde_f.of_local_k Result.map >>= Implementer.map)
+  Tilde_f.Let_syntax.(
+    Tilde_f.of_local (Map.map t) >>= Tilde_f.of_local_k Result.map >>= Implementer.map)
 ;;
 
 let of_list ts =
@@ -111,7 +115,9 @@ module Rpc = struct
   let singleton rpc =
     singleton
       (Rpc.Rpc.description rpc)
-      { implement = (fun f -> Rpc.Rpc.implement rpc f); rpc = Rpc rpc }
+      { implement = (fun ?on_exception f -> Rpc.Rpc.implement ?on_exception rpc f)
+      ; rpc = Rpc rpc
+      }
   ;;
 
   let add = adder ~f:singleton
@@ -125,7 +131,9 @@ module Rpc' = struct
   let singleton rpc =
     singleton
       (Rpc.Rpc.description rpc)
-      { implement = (fun f -> Rpc.Rpc.implement' rpc f); rpc = Rpc rpc }
+      { implement = (fun ?on_exception f -> Rpc.Rpc.implement' ?on_exception rpc f)
+      ; rpc = Rpc rpc
+      }
   ;;
 
   let add = adder ~f:singleton
@@ -139,7 +147,9 @@ module Pipe_rpc = struct
   let singleton rpc =
     singleton
       (Rpc.Pipe_rpc.description rpc)
-      { implement = (fun f -> Rpc.Pipe_rpc.implement rpc f); rpc = Pipe rpc }
+      { implement = (fun ?on_exception f -> Rpc.Pipe_rpc.implement ?on_exception rpc f)
+      ; rpc = Pipe rpc
+      }
   ;;
 
   let add = adder ~f:singleton
@@ -180,12 +190,15 @@ module Pipe_rpc_direct = struct
     singleton
       description
       { implement =
-          (fun f ->
-             Rpc.Pipe_rpc.implement_direct rpc (fun connection_state query writer ->
-               f
-                 connection_state
-                 query
-                 (Direct_stream_writer.Expert.create_witnessed writer ~witness)))
+          (fun ?on_exception f ->
+             Rpc.Pipe_rpc.implement_direct
+               ?on_exception
+               rpc
+               (fun connection_state query writer ->
+                  f
+                    connection_state
+                    query
+                    (Direct_stream_writer.Expert.create_witnessed writer ~witness)))
       ; rpc = Pipe rpc
       }
   ;;
@@ -223,7 +236,9 @@ module State_rpc = struct
   let singleton rpc =
     singleton
       (Rpc.State_rpc.description rpc)
-      { implement = (fun f -> Rpc.State_rpc.implement rpc f); rpc = State rpc }
+      { implement = (fun ?on_exception f -> Rpc.State_rpc.implement ?on_exception rpc f)
+      ; rpc = State rpc
+      }
   ;;
 
   let add = adder ~f:singleton
@@ -264,7 +279,9 @@ module One_way = struct
   let singleton rpc =
     singleton
       (Rpc.One_way.description rpc)
-      { implement = (fun f -> Rpc.One_way.implement rpc f); rpc = One_way rpc }
+      { implement = (fun ?on_exception f -> Rpc.One_way.implement ?on_exception rpc f)
+      ; rpc = One_way rpc
+      }
   ;;
 
   let add = adder ~f:singleton
@@ -275,7 +292,8 @@ module Streamable_plain_rpc = struct
   let singleton rpc =
     singleton
       (Streamable.Plain_rpc.description rpc)
-      { implement = (fun f -> Streamable.Plain_rpc.implement rpc f)
+      { implement =
+          (fun ?on_exception f -> Streamable.Plain_rpc.implement ?on_exception rpc f)
       ; rpc = Streamable_plain rpc
       }
   ;;
@@ -293,7 +311,8 @@ module Streamable_pipe_rpc = struct
   let singleton rpc =
     singleton
       (Streamable.Pipe_rpc.description rpc)
-      { implement = (fun f -> Streamable.Pipe_rpc.implement rpc f)
+      { implement =
+          (fun ?on_exception f -> Streamable.Pipe_rpc.implement ?on_exception rpc f)
       ; rpc = Streamable_pipe rpc
       }
   ;;
@@ -319,7 +338,8 @@ module Streamable_state_rpc = struct
   let singleton rpc =
     singleton
       (Streamable.State_rpc.description rpc)
-      { implement = (fun f -> Streamable.State_rpc.implement rpc f)
+      { implement =
+          (fun ?on_exception f -> Streamable.State_rpc.implement ?on_exception rpc f)
       ; rpc = Streamable_state rpc
       }
   ;;

@@ -157,6 +157,14 @@ module Group = struct
     Bag.to_list t |> List.map ~f:(Fn.flip Subgroup.write a) |> Deferred.all_unit
   ;;
 
+  let length t =
+    Bag.sum
+      (module Int)
+      t
+      ~f:(fun (Subgroup.T { group; _ }) ->
+        Rpc.Pipe_rpc.Direct_stream_writer.Group.length group)
+  ;;
+
   module For_testing = struct
     let num_subgroups = Bag.length
   end
