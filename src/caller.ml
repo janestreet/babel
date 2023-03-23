@@ -53,6 +53,11 @@ let of_list_decreasing_preference = List.concat
 let map_query t = Tilde_f.Let_syntax.(map t >>= Fn.map_input)
 let map_response t = Tilde_f.Let_syntax.(map t >>= Fn.map)
 
+let can_dispatch t connection_with_menu =
+  let menu = Versioned_rpc.Connection_with_menu.menu connection_with_menu in
+  find_strategy t menu |> Or_error.is_ok
+;;
+
 let dispatch_multi ?metadata t connection_with_menu query ~on_error =
   let menu = Versioned_rpc.Connection_with_menu.menu connection_with_menu in
   match to_dispatch_fun t menu with

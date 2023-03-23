@@ -542,3 +542,7 @@ val map_query : ('a -> 'b) t -> f:('c -> 'a) -> ('c -> 'b) t
     In practice, most implementations will return deferreds or other complex types, so you
     should prefer to use more specialized functions, such as [Rpc.map_response]. *)
 val map_response : ('a -> 'b) t -> f:('b -> 'c) -> ('a -> 'c) t
+
+(** Return whether any of strategies in the rpc protocol menu are supported by
+    the dispatch function. *)
+val can_dispatch : _ t -> Versioned_rpc.Connection_with_menu.t -> bool
