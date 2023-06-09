@@ -500,7 +500,23 @@ let%test_module "Streamable_plain_rpc" =
         end
 
         module Caller = struct
-          module Monad = Deferred.Or_error
+          module Monad = struct
+            type 'a t = 'a Or_error.t Or_error.t Deferred.t
+
+            include Monad.Make (struct
+                type nonrec 'a t = 'a t
+
+                let bind t ~f =
+                  match%bind.Deferred.Or_error t with
+                  | Error _ as error -> Deferred.Or_error.return error
+                  | Ok x -> f x
+                ;;
+
+                let return x = Deferred.Or_error.return (Ok x)
+                let map = `Define_using_bind
+              end)
+          end
+
           include Babel.Caller.Streamable_plain_rpc
         end
       end)

@@ -370,7 +370,7 @@ module Streamable_plain_rpc = struct
   let dispatch_multi = dispatch_multi_or_error_deferred
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Streamable.Plain_rpc.dispatch ?metadata rpc)
+    [ { dispatch = (fun ?metadata -> Streamable.Plain_rpc.dispatch' ?metadata rpc)
       ; rpc = Streamable_plain rpc
       }
     ]
@@ -381,7 +381,10 @@ module Streamable_plain_rpc = struct
 
   let map_response t =
     Tilde_f.Let_syntax.(
-      map_response t >>= Deferred.map >>= Tilde_f.of_local_k Or_error.map)
+      map_response t
+      >>= Deferred.map
+      >>= Tilde_f.of_local_k Or_error.map
+      >>= Tilde_f.of_local_k Or_error.map)
   ;;
 end
 
@@ -389,7 +392,7 @@ module Streamable_pipe_rpc = struct
   let dispatch_multi = dispatch_multi_or_error_deferred
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Streamable.Pipe_rpc.dispatch ?metadata rpc)
+    [ { dispatch = (fun ?metadata -> Streamable.Pipe_rpc.dispatch' ?metadata rpc)
       ; rpc = Streamable_pipe rpc
       }
     ]
@@ -403,12 +406,17 @@ module Streamable_pipe_rpc = struct
       map_response t
       >>= Deferred.map
       >>= Tilde_f.of_local_k Or_error.map
+      >>= Tilde_f.of_local_k Or_error.map
       >>= Pipe.filter_map ?max_queue_length:None)
   ;;
 
   let map_response t =
     Tilde_f.Let_syntax.(
-      map_response t >>= Deferred.map >>= Tilde_f.of_local_k Or_error.map >>= Pipe.map)
+      map_response t
+      >>= Deferred.map
+      >>= Tilde_f.of_local_k Or_error.map
+      >>= Tilde_f.of_local_k Or_error.map
+      >>= Pipe.map)
   ;;
 end
 
@@ -416,7 +424,7 @@ module Streamable_state_rpc = struct
   let dispatch_multi = dispatch_multi_or_error_deferred
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Streamable.State_rpc.dispatch ?metadata rpc)
+    [ { dispatch = (fun ?metadata -> Streamable.State_rpc.dispatch' ?metadata rpc)
       ; rpc = Streamable_state rpc
       }
     ]
@@ -430,6 +438,7 @@ module Streamable_state_rpc = struct
       map_response t
       >>= Deferred.map
       >>= Tilde_f.of_local_k Or_error.map
+      >>= Tilde_f.of_local_k Or_error.map
       >>= Tuple2.map_fst)
   ;;
 
@@ -437,6 +446,7 @@ module Streamable_state_rpc = struct
     Tilde_f.Let_syntax.(
       map_response t
       >>= Deferred.map
+      >>= Tilde_f.of_local_k Or_error.map
       >>= Tilde_f.of_local_k Or_error.map
       >>= Tuple2.map_snd
       >>= Pipe.filter_map ?max_queue_length:None)
@@ -446,6 +456,7 @@ module Streamable_state_rpc = struct
     Tilde_f.Let_syntax.(
       map_response t
       >>= Deferred.map
+      >>= Tilde_f.of_local_k Or_error.map
       >>= Tilde_f.of_local_k Or_error.map
       >>= Tuple2.map_snd
       >>= Pipe.map)
