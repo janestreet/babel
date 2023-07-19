@@ -13,10 +13,10 @@ type +_ t
 
 (** The protocols supported by the caller in order from most preferred to least preferred.
 *)
-val shapes : _ t -> (Rpc.Description.t * Shape.t) list
+val shapes : _ t -> (Rpc.Description.t * Shape.t) Nonempty_list.t
 
-val descriptions : _ t -> Rpc.Description.t list
-val supported_rpcs : _ t -> Generic_rpc.t list
+val descriptions : _ t -> Rpc.Description.t Nonempty_list.t
+val supported_rpcs : _ t -> Generic_rpc.t Nonempty_list.t
 
 (** Print the required set of protocols for each supported dispatching strategy in order
     from most preferred to least preferred. This is useful for demonstrating the final
@@ -25,7 +25,7 @@ val print_shapes : _ t -> unit
 
 (** [of_list_decreasing_preference ts] results in a caller that picks the first [t] in
     [ts] compatible with whatever version menu is supplied to [dispatch_multi]. *)
-val of_list_decreasing_preference : 'a t list -> 'a t
+val of_list_decreasing_preference : 'a t Nonempty_list.t -> 'a t
 
 (** High level functions for working with callers in the style of
     [Async.Rpc.Rpc.dispatch]. *)

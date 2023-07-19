@@ -10,16 +10,15 @@ let check_compatibility ~caller ~callee =
   let caller_shapes = Caller.shapes caller in
   let%bind callee_shapes = Callee.shapes callee in
   match
-    List.find_map caller_shapes ~f:(fun ((caller_description, _shape) as caller) ->
-      List.find_map callee_shapes ~f:(fun ((callee_description, _shape) as callee) ->
-        if [%compare.equal: Rpc.Description.t] caller_description callee_description
-        then Some (caller, callee)
-        else None))
+    Nonempty_list.find_map
+      caller_shapes
+      ~f:(fun ((caller_description, _shape) as caller) ->
+        List.find_map callee_shapes ~f:(fun ((callee_description, _shape) as callee) ->
+          if [%compare.equal: Rpc.Description.t] caller_description callee_description
+          then Some (caller, callee)
+          else None))
   with
-  | None ->
-    (match caller_shapes with
-     | [] -> Or_error.error_string "Caller knows no rpcs at all"
-     | _ :: _ -> Or_error.error_string "Could not match any rpcs")
+  | None -> Or_error.error_string "Could not match any rpcs"
   | Some ((caller_description, caller_shape), (callee_description, callee_shape)) ->
     if Shape.equal caller_shape callee_shape
     then Ok caller_description

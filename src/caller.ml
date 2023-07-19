@@ -26,16 +26,19 @@ end
 
 open Strategy
 
-type 'a t = 'a Strategy.t list
+type 'a t = 'a Strategy.t Nonempty_list.t
 
-let map t ~f = List.map t ~f:(fun s -> Strategy.map ~f s)
-let shapes t = List.map t ~f:Strategy.shape
-let supported_rpcs t = List.map t ~f:Strategy.rpc
-let descriptions t = List.map (shapes t) ~f:fst
-let print_shapes t = print_s [%sexp (shapes t : (Rpc.Description.t * Shape.t) list)]
+let map t ~f = Nonempty_list.map t ~f:(fun s -> Strategy.map ~f s)
+let shapes t = Nonempty_list.map t ~f:Strategy.shape
+let supported_rpcs t = Nonempty_list.map t ~f:Strategy.rpc
+let descriptions t = Nonempty_list.map t ~f:Strategy.description
+
+let print_shapes t =
+  print_s [%sexp (shapes t : (Rpc.Description.t * Shape.t) Nonempty_list.t)]
+;;
 
 let find_strategy t menu =
-  match List.find t ~f:(fun strategy -> Strategy.in_menu strategy menu) with
+  match Nonempty_list.find t ~f:(fun strategy -> Strategy.in_menu strategy menu) with
   | Some strategy -> Ok strategy
   | None ->
     let callee_rpcs = Versioned_rpc.Menu.supported_rpcs menu in
@@ -44,12 +47,12 @@ let find_strategy t menu =
       [%message
         "Could not find any supported rpc in callee"
           (callee_rpcs : Rpc.Description.t list)
-          (caller_rpcs : Rpc.Description.t list)]
+          (caller_rpcs : Rpc.Description.t Nonempty_list.t)]
 ;;
 
 let to_dispatch_fun t menu = find_strategy t menu |> Or_error.map ~f:Strategy.dispatch
 let description t menu = find_strategy t menu |> Or_error.map ~f:Strategy.description
-let of_list_decreasing_preference = List.concat
+let of_list_decreasing_preference = Nonempty_list.concat
 let map_query t = Tilde_f.Let_syntax.(map t >>= Fn.map_input)
 let map_response t = Tilde_f.Let_syntax.(map t >>= Fn.map)
 
@@ -84,7 +87,8 @@ module Rpc = struct
   let dispatch_multi = dispatch_multi_or_error_deferred
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Rpc.Rpc.dispatch ?metadata rpc); rpc = Rpc rpc } ]
+    Nonempty_list.singleton
+      { dispatch = (fun ?metadata -> Rpc.Rpc.dispatch ?metadata rpc); rpc = Rpc rpc }
   ;;
 
   let add = adder ~f:singleton
@@ -100,7 +104,8 @@ module Rpc' = struct
   open Async_rpc_kernel
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Rpc.Rpc.dispatch' ?metadata rpc); rpc = Rpc rpc } ]
+    Nonempty_list.singleton
+      { dispatch = (fun ?metadata -> Rpc.Rpc.dispatch' ?metadata rpc); rpc = Rpc rpc }
   ;;
 
   let add = adder ~f:singleton
@@ -117,8 +122,8 @@ module Rpc_exn = struct
   let dispatch_multi = dispatch_multi_exn
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Rpc.Rpc.dispatch_exn ?metadata rpc); rpc = Rpc rpc }
-    ]
+    Nonempty_list.singleton
+      { dispatch = (fun ?metadata -> Rpc.Rpc.dispatch_exn ?metadata rpc); rpc = Rpc rpc }
   ;;
 
   let add = adder ~f:singleton
@@ -132,10 +137,10 @@ module Pipe_rpc = struct
   let dispatch_multi = dispatch_multi_or_error_deferred
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Rpc.Pipe_rpc.dispatch ?metadata rpc)
+    Nonempty_list.singleton
+      { dispatch = (fun ?metadata -> Rpc.Pipe_rpc.dispatch ?metadata rpc)
       ; rpc = Pipe rpc
       }
-    ]
   ;;
 
   let add = adder ~f:singleton
@@ -176,10 +181,10 @@ module Pipe_rpc_exn = struct
   let dispatch_multi = dispatch_multi_exn
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Rpc.Pipe_rpc.dispatch_exn ?metadata rpc)
+    Nonempty_list.singleton
+      { dispatch = (fun ?metadata -> Rpc.Pipe_rpc.dispatch_exn ?metadata rpc)
       ; rpc = Pipe rpc
       }
-    ]
   ;;
 
   let add = adder ~f:singleton
@@ -245,7 +250,7 @@ module Pipe_rpc_iter = struct
        >>= Tilde_f.of_local_k Result.map)
         ~f:(fun id -> Id.T { rpc; connection; id })
     in
-    [ { dispatch; rpc = Pipe rpc } ]
+    Nonempty_list.singleton { dispatch; rpc = Pipe rpc }
   ;;
 
   let add = adder ~f:singleton
@@ -273,10 +278,10 @@ module State_rpc = struct
   let dispatch_multi = dispatch_multi_or_error_deferred
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Rpc.State_rpc.dispatch ?metadata rpc)
+    Nonempty_list.singleton
+      { dispatch = (fun ?metadata -> Rpc.State_rpc.dispatch ?metadata rpc)
       ; rpc = State rpc
       }
-    ]
   ;;
 
   let add = adder ~f:singleton
@@ -326,10 +331,10 @@ module One_way = struct
   let dispatch_multi = dispatch_multi_or_error
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Rpc.One_way.dispatch ?metadata rpc)
+    Nonempty_list.singleton
+      { dispatch = (fun ?metadata -> Rpc.One_way.dispatch ?metadata rpc)
       ; rpc = One_way rpc
       }
-    ]
   ;;
 
   let add = adder ~f:singleton
@@ -342,10 +347,10 @@ module One_way_exn = struct
   let dispatch_multi = dispatch_multi_exn
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Rpc.One_way.dispatch_exn ?metadata rpc)
+    Nonempty_list.singleton
+      { dispatch = (fun ?metadata -> Rpc.One_way.dispatch_exn ?metadata rpc)
       ; rpc = One_way rpc
       }
-    ]
   ;;
 
   let add = adder ~f:singleton
@@ -356,10 +361,10 @@ module One_way' = struct
   open Async_rpc_kernel
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Rpc.One_way.dispatch' ?metadata rpc)
+    Nonempty_list.singleton
+      { dispatch = (fun ?metadata -> Rpc.One_way.dispatch' ?metadata rpc)
       ; rpc = One_way rpc
       }
-    ]
   ;;
 
   let add = adder ~f:singleton
@@ -370,10 +375,10 @@ module Streamable_plain_rpc = struct
   let dispatch_multi = dispatch_multi_or_error_deferred
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Streamable.Plain_rpc.dispatch' ?metadata rpc)
+    Nonempty_list.singleton
+      { dispatch = (fun ?metadata -> Streamable.Plain_rpc.dispatch' ?metadata rpc)
       ; rpc = Streamable_plain rpc
       }
-    ]
   ;;
 
   let add = adder ~f:singleton
@@ -392,10 +397,10 @@ module Streamable_pipe_rpc = struct
   let dispatch_multi = dispatch_multi_or_error_deferred
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Streamable.Pipe_rpc.dispatch' ?metadata rpc)
+    Nonempty_list.singleton
+      { dispatch = (fun ?metadata -> Streamable.Pipe_rpc.dispatch' ?metadata rpc)
       ; rpc = Streamable_pipe rpc
       }
-    ]
   ;;
 
   let add = adder ~f:singleton
@@ -424,10 +429,10 @@ module Streamable_state_rpc = struct
   let dispatch_multi = dispatch_multi_or_error_deferred
 
   let singleton rpc =
-    [ { dispatch = (fun ?metadata -> Streamable.State_rpc.dispatch' ?metadata rpc)
+    Nonempty_list.singleton
+      { dispatch = (fun ?metadata -> Streamable.State_rpc.dispatch' ?metadata rpc)
       ; rpc = Streamable_state rpc
       }
-    ]
   ;;
 
   let add = adder ~f:singleton

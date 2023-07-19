@@ -80,7 +80,7 @@ let%expect_test "Conversion functions only get run once per item" =
       Stable.Response.V2.a v2)
     |> Babel.Callee.Pipe_rpc_direct.add ~rpc:v2
   in
-  let group = Direct_stream_writer.Group.create () in
+  let group = Direct_stream_writer.Group.create ~store_last_value_and_send_on_add:false in
   let implementations = make_implementations group callee in
   let dispatch rpc = connect_and_dispatch implementations rpc in
   let subgroups () = Direct_stream_writer.Group.For_testing.num_subgroups group in
@@ -113,7 +113,7 @@ let%expect_test "One group can contain multiple rpcs with the same types but dif
         |> Babel.Callee.Pipe_rpc_direct.add ~rpc:v2_alt
       ]
   in
-  let group = Direct_stream_writer.Group.create () in
+  let group = Direct_stream_writer.Group.create ~store_last_value_and_send_on_add:false in
   let implementations = make_implementations group callee in
   let dispatch rpc = connect_and_dispatch implementations rpc in
   let subgroups () = Direct_stream_writer.Group.For_testing.num_subgroups group in
@@ -155,7 +155,7 @@ let%expect_test "transformation ids only need to uniquely represent functions, n
     fun writer ->
       Direct_stream_writer.Expert.map_input_with_id writer ~f:(fun n -> n * 2) ~id
   in
-  let group = Direct_stream_writer.Group.create () in
+  let group = Direct_stream_writer.Group.create ~store_last_value_and_send_on_add:false in
   List.mapi dsws ~f:distinct_transform
   |> List.map ~f:same_transform
   |> List.iter ~f:(Direct_stream_writer.Group.add_exn group);
@@ -164,5 +164,33 @@ let%expect_test "transformation ids only need to uniquely represent functions, n
   Direct_stream_writer.Group.write_without_pushback group 3;
   let%bind () = Pipe.read_exn a1 >>| [%test_result: int] ~expect:6 in
   let%bind () = Pipe.read_exn a2 >>| [%test_result: int] ~expect:7 in
+  return ()
+;;
+
+let%expect_test "[store_last_value_and_send_on_add] works for both existing and new \
+                 subgroups, without extra conversions"
+  =
+  let conversions = ref 0 in
+  let callee =
+    Babel.Callee.Pipe_rpc_direct.singleton v1
+    |> Babel.Callee.Pipe_rpc_direct.map_response ~f:(fun v2 ->
+      conversions := !conversions + 1;
+      Stable.Response.V2.a v2)
+    |> Babel.Callee.Pipe_rpc_direct.add ~rpc:v2
+  in
+  let group = Direct_stream_writer.Group.create ~store_last_value_and_send_on_add:true in
+  let implementations = make_implementations group callee in
+  let dispatch rpc = connect_and_dispatch implementations rpc in
+  let%bind a1 = dispatch v1 in
+  let value : Response.t = { a = 5; b = 1 } in
+  Direct_stream_writer.Group.write_without_pushback group value;
+  let%bind () = Pipe.read_exn a1 >>| [%test_result: int] ~expect:5 in
+  let%bind b1 = dispatch v1 in
+  let%bind () = Pipe.read_exn b1 >>| [%test_result: int] ~expect:5 in
+  let%bind a2 = dispatch v2 in
+  let%bind () = Pipe.read_exn a2 >>| [%test_result: Response.t] ~expect:value in
+  let%bind b2 = dispatch v2 in
+  let%bind () = Pipe.read_exn b2 >>| [%test_result: Response.t] ~expect:value in
+  [%test_result: int] !conversions ~expect:1;
   return ()
 ;;

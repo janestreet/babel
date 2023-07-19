@@ -146,14 +146,12 @@ end = struct
   ;;
 
   let callers =
-    let open List.Let_syntax in
-    let maybe_add rpc = [ Fn.id; X.Caller.add ~rpc ] in
-    let%map add_v1 = maybe_add v1
-    and add_v2 = maybe_add v2 in
-    Babel.Caller.of_list_decreasing_preference []
-    |> add_v1
-    |> X.Caller.map_query ~f:Stable.Query.V2.to_V1_t
-    |> add_v2
+    [ X.Caller.singleton v2
+    ; X.Caller.singleton v1 |> X.Caller.map_query ~f:Stable.Query.V2.to_V1_t
+    ; X.Caller.singleton v1
+      |> X.Caller.map_query ~f:Stable.Query.V2.to_V1_t
+      |> X.Caller.add ~rpc:v2
+    ]
   ;;
 
   let banner = "-------------------------------------------------------------"
@@ -196,7 +194,7 @@ end = struct
       print_endline banner;
       print_s
         [%message
-          (caller_rpcs : Rpc.Description.t list)
+          (caller_rpcs : Rpc.Description.t Nonempty_list.t)
             (callee v1 : Sexp.t)
             (callee v2 : Sexp.t)
             (callee bad_v2 : Sexp.t)])
@@ -211,7 +209,7 @@ end = struct
         print_endline banner;
         print_s
           [%message
-            (caller_rpcs : Rpc.Description.t list)
+            (caller_rpcs : Rpc.Description.t Nonempty_list.t)
               (callee_rpcs : Rpc.Description.t list Or_error.t)
               (selected_rpc : Rpc.Description.t Or_error.t)]))
   ;;
@@ -313,8 +311,6 @@ let%test_module "Rpc" =
       [%expect
         {|
     -------------------------------------------------------------
-    ()
-    -------------------------------------------------------------
     ((((name create-breakfast-buffet) (version 2))
       (Rpc (query b3089c21b0f09f5502848bf675a1ac86)
        (response 4a65f33ff4f5558e046675409de91fad))))
@@ -335,10 +331,6 @@ let%test_module "Rpc" =
       test_caller_converts ();
       [%expect
         {|
-    -------------------------------------------------------------
-    ((caller_rpcs ()) ("callee v1" (Error "Caller knows no rpcs at all"))
-     ("callee v2" (Error "Caller knows no rpcs at all"))
-     ("callee bad_v2" (Error "Caller knows no rpcs at all")))
     -------------------------------------------------------------
     ((caller_rpcs (((name create-breakfast-buffet) (version 2))))
      ("callee v1" (Error "Could not match any rpcs"))
@@ -370,24 +362,6 @@ let%test_module "Rpc" =
       test_both_convert ();
       [%expect
         {|
-    -------------------------------------------------------------
-    ((caller_rpcs ()) (callee_rpcs (Ok ()))
-     (selected_rpc (Error "Caller knows no rpcs at all")))
-    -------------------------------------------------------------
-    ((caller_rpcs ())
-     (callee_rpcs (Ok (((name create-breakfast-buffet) (version 2)))))
-     (selected_rpc (Error "Caller knows no rpcs at all")))
-    -------------------------------------------------------------
-    ((caller_rpcs ())
-     (callee_rpcs (Ok (((name create-breakfast-buffet) (version 1)))))
-     (selected_rpc (Error "Caller knows no rpcs at all")))
-    -------------------------------------------------------------
-    ((caller_rpcs ())
-     (callee_rpcs
-      (Ok
-       (((name create-breakfast-buffet) (version 1))
-        ((name create-breakfast-buffet) (version 2)))))
-     (selected_rpc (Error "Caller knows no rpcs at all")))
     -------------------------------------------------------------
     ((caller_rpcs (((name create-breakfast-buffet) (version 2))))
      (callee_rpcs (Ok ())) (selected_rpc (Error "Could not match any rpcs")))
@@ -591,8 +565,6 @@ let%test_module "Streamable_plain_rpc" =
       [%expect
         {|
     -------------------------------------------------------------
-    ()
-    -------------------------------------------------------------
     ((((name create-breakfast-buffet) (version 2))
       (Streamable_plain_rpc (query b3089c21b0f09f5502848bf675a1ac86)
        (response 4dcf125bc50b7b1690b2f33afcd521e1))))
@@ -613,10 +585,6 @@ let%test_module "Streamable_plain_rpc" =
       test_caller_converts ();
       [%expect
         {|
-    -------------------------------------------------------------
-    ((caller_rpcs ()) ("callee v1" (Error "Caller knows no rpcs at all"))
-     ("callee v2" (Error "Caller knows no rpcs at all"))
-     ("callee bad_v2" (Error "Caller knows no rpcs at all")))
     -------------------------------------------------------------
     ((caller_rpcs (((name create-breakfast-buffet) (version 2))))
      ("callee v1" (Error "Could not match any rpcs"))
@@ -648,24 +616,6 @@ let%test_module "Streamable_plain_rpc" =
       test_both_convert ();
       [%expect
         {|
-    -------------------------------------------------------------
-    ((caller_rpcs ()) (callee_rpcs (Ok ()))
-     (selected_rpc (Error "Caller knows no rpcs at all")))
-    -------------------------------------------------------------
-    ((caller_rpcs ())
-     (callee_rpcs (Ok (((name create-breakfast-buffet) (version 2)))))
-     (selected_rpc (Error "Caller knows no rpcs at all")))
-    -------------------------------------------------------------
-    ((caller_rpcs ())
-     (callee_rpcs (Ok (((name create-breakfast-buffet) (version 1)))))
-     (selected_rpc (Error "Caller knows no rpcs at all")))
-    -------------------------------------------------------------
-    ((caller_rpcs ())
-     (callee_rpcs
-      (Ok
-       (((name create-breakfast-buffet) (version 1))
-        ((name create-breakfast-buffet) (version 2)))))
-     (selected_rpc (Error "Caller knows no rpcs at all")))
     -------------------------------------------------------------
     ((caller_rpcs (((name create-breakfast-buffet) (version 2))))
      (callee_rpcs (Ok ())) (selected_rpc (Error "Could not match any rpcs")))

@@ -92,8 +92,11 @@ module Group = struct
 
     let of_writer_exn
           (T { writer; transform; output_witness; transformation_ids } : _ writer)
+          ~send_last_value_on_add
       =
-      let group = Rpc.Pipe_rpc.Direct_stream_writer.Group.create () in
+      let group =
+        Rpc.Pipe_rpc.Direct_stream_writer.Group.create ~send_last_value_on_add ()
+      in
       Rpc.Pipe_rpc.Direct_stream_writer.Group.add_exn group writer;
       T { group; transform; output_witness; transformation_ids }
     ;;
@@ -137,36 +140,95 @@ module Group = struct
     ;;
   end
 
-  type 'a t = 'a Subgroup.t Bag.t
+  module Last_value : sig
+    type 'a t
 
-  let create () = Bag.create ()
+    val create : unit -> _ t
+    val get : 'a t -> 'a option
+    val set : 'a t -> 'a -> unit
+  end = struct
+    type 'a t = 'a ref Set_once.t
 
-  let add_exn t writer =
-    match Bag.find t ~f:(Fn.flip Subgroup.compatible writer) with
+    let create = Set_once.create
+    let get t = Option.map (Set_once.get t) ~f:( ! )
+
+    let set t a =
+      if Set_once.is_none t
+      then Set_once.set_exn t [%here] (ref a)
+      else Set_once.get_exn t [%here] := a
+    ;;
+  end
+
+  module Last_value_if_should_send_on_add = struct
+    type 'a t =
+      | Do_not_store
+      | Store_and_send_on_add of 'a Last_value.t
+
+    let get_last_value = function
+      | Do_not_store -> None
+      | Store_and_send_on_add last_value -> Last_value.get last_value
+    ;;
+
+    let set_last_value t a =
+      match t with
+      | Do_not_store -> ()
+      | Store_and_send_on_add last_value -> Last_value.set last_value a
+    ;;
+  end
+
+  type 'a t =
+    { subgroups : 'a Subgroup.t Bag.t
+    ; last_value : 'a Last_value_if_should_send_on_add.t
+    }
+
+  let create ~store_last_value_and_send_on_add =
+    { subgroups = Bag.create ()
+    ; last_value =
+        (if store_last_value_and_send_on_add
+         then Store_and_send_on_add (Last_value.create ())
+         else Do_not_store)
+    }
+  ;;
+
+  let add_exn { subgroups; last_value } writer =
+    match Bag.find subgroups ~f:(Fn.flip Subgroup.compatible writer) with
     | Some subgroup -> Subgroup.add_exn subgroup writer
     | None ->
-      let subgroup = Subgroup.of_writer_exn writer in
-      Bag.add_unit t subgroup
+      let send_last_value_on_add =
+        match last_value with
+        | Do_not_store -> false
+        | Store_and_send_on_add (_ : _ Last_value.t) -> true
+      in
+      let subgroup = Subgroup.of_writer_exn writer ~send_last_value_on_add in
+      Bag.add_unit subgroups subgroup;
+      Option.iter
+        (Last_value_if_should_send_on_add.get_last_value last_value)
+        ~f:(Subgroup.write_without_pushback subgroup)
   ;;
 
-  let write_without_pushback t a =
-    Bag.iter t ~f:(Fn.flip Subgroup.write_without_pushback a)
+  let write_without_pushback { subgroups; last_value } a =
+    Bag.iter subgroups ~f:(Fn.flip Subgroup.write_without_pushback a);
+    Last_value_if_should_send_on_add.set_last_value last_value a
   ;;
 
-  let write t a =
-    Bag.to_list t |> List.map ~f:(Fn.flip Subgroup.write a) |> Deferred.all_unit
+  let write { subgroups; last_value } a =
+    let all_written =
+      Bag.to_list subgroups |> List.map ~f:(Fn.flip Subgroup.write a) |> Deferred.all_unit
+    in
+    Last_value_if_should_send_on_add.set_last_value last_value a;
+    all_written
   ;;
 
   let length t =
     Bag.sum
       (module Int)
-      t
+      t.subgroups
       ~f:(fun (Subgroup.T { group; _ }) ->
         Rpc.Pipe_rpc.Direct_stream_writer.Group.length group)
   ;;
 
   module For_testing = struct
-    let num_subgroups = Bag.length
+    let num_subgroups t = Bag.length t.subgroups
   end
 end
 

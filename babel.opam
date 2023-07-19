@@ -13,6 +13,7 @@ depends: [
   "ocaml" {>= "4.14.0"}
   "async_rpc_kernel"
   "core"
+  "core_kernel"
   "ppx_jane"
   "streamable"
   "tilde_f"
