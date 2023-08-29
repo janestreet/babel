@@ -8,7 +8,7 @@ module Strategy = struct
     { dispatch : ?metadata:Rpc_metadata.t -> Rpc.Connection.t -> 'a
     ; rpc : Generic_rpc.t
     }
-  [@@deriving fields]
+  [@@deriving fields ~getters]
 
   let map { dispatch; rpc } ~f =
     let dispatch ?metadata conn = f (dispatch ?metadata conn) in

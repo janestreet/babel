@@ -15,7 +15,7 @@ module Stable = struct
         { a : int
         ; b : int
         }
-      [@@deriving bin_io, compare, fields, sexp_of]
+      [@@deriving bin_io, compare, fields ~getters, sexp_of]
     end
   end
 end
