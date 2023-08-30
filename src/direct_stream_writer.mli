@@ -67,7 +67,7 @@ module Group : sig
 
   val create
     :  store_last_value_and_send_on_add:bool
-    (** If [true], the group will store the last value written and automatically send it
+         (** If [true], the group will store the last value written and automatically send it
         to each new writer when it's added to the group. *)
     -> _ t
 
@@ -87,7 +87,6 @@ module Group : sig
 
   (** Number of elements in the group *)
   val length : _ t -> int
-
 
   module For_testing : sig
     val num_subgroups : _ t -> int

@@ -41,19 +41,19 @@ module Stable = struct
           (Streamable.Of_streamable
              (Streamable.Of_variant2
                 (Streamable.Of_atomic (Unit.V1)) (Streamable.Of_atomic (Unit.V1)))
-             (struct
-               type nonrec t = t
+                (struct
+                  type nonrec t = t
 
-               let to_streamable = function
-                 | Already_exists -> `A ()
-                 | Created -> `B ()
-               ;;
+                  let to_streamable = function
+                    | Already_exists -> `A ()
+                    | Created -> `B ()
+                  ;;
 
-               let of_streamable = function
-                 | `A () -> Already_exists
-                 | `B () -> Created
-               ;;
-             end))
+                  let of_streamable = function
+                    | `A () -> Already_exists
+                    | `B () -> Created
+                  ;;
+                end))
     end
   end
 end
@@ -73,47 +73,47 @@ open Async_kernel
 open Async_rpc_kernel
 
 module Setup (X : sig
-    type ('q, 'r) rpc
+  type ('q, 'r) rpc
 
-    val create_rpc
-      :  (module Q with type t = 'q)
-      -> (module R with type t = 'r)
-      -> name:string
-      -> version:int
-      -> ('q, 'r) rpc
+  val create_rpc
+    :  (module Q with type t = 'q)
+    -> (module R with type t = 'r)
+    -> name:string
+    -> version:int
+    -> ('q, 'r) rpc
 
-    module Callee : sig
-      module Monad : Monad.S
+  module Callee : sig
+    module Monad : Monad.S
 
-      val singleton : ('q, 'r) rpc -> ('q -> 'r Monad.t) Babel.Callee.t
+    val singleton : ('q, 'r) rpc -> ('q -> 'r Monad.t) Babel.Callee.t
 
-      val add
-        :  ('q -> 'r Monad.t) Babel.Callee.t
-        -> rpc:('q, 'r) rpc
-        -> ('q -> 'r Monad.t) Babel.Callee.t
+    val add
+      :  ('q -> 'r Monad.t) Babel.Callee.t
+      -> rpc:('q, 'r) rpc
+      -> ('q -> 'r Monad.t) Babel.Callee.t
 
-      val map_query
-        :  ('q1 -> 'r Monad.t) Babel.Callee.t
-        -> f:('q1 -> 'q2)
-        -> ('q2 -> 'r Monad.t) Babel.Callee.t
-    end
+    val map_query
+      :  ('q1 -> 'r Monad.t) Babel.Callee.t
+      -> f:('q1 -> 'q2)
+      -> ('q2 -> 'r Monad.t) Babel.Callee.t
+  end
 
-    module Caller : sig
-      module Monad : Monad.S
+  module Caller : sig
+    module Monad : Monad.S
 
-      val singleton : ('q, 'r) rpc -> ('q -> 'r Monad.t) Babel.Caller.t
+    val singleton : ('q, 'r) rpc -> ('q -> 'r Monad.t) Babel.Caller.t
 
-      val add
-        :  ('q -> 'r Monad.t) Babel.Caller.t
-        -> rpc:('q, 'r) rpc
-        -> ('q -> 'r Monad.t) Babel.Caller.t
+    val add
+      :  ('q -> 'r Monad.t) Babel.Caller.t
+      -> rpc:('q, 'r) rpc
+      -> ('q -> 'r Monad.t) Babel.Caller.t
 
-      val map_query
-        :  ('q1 -> 'r Monad.t) Babel.Caller.t
-        -> f:('q2 -> 'q1)
-        -> ('q2 -> 'r Monad.t) Babel.Caller.t
-    end
-  end) : sig
+    val map_query
+      :  ('q1 -> 'r Monad.t) Babel.Caller.t
+      -> f:('q2 -> 'q1)
+      -> ('q2 -> 'r Monad.t) Babel.Caller.t
+  end
+end) : sig
   val print_callee_shapes : unit -> unit
   val print_caller_shapes : unit -> unit
   val test_callee_converts : unit -> unit
@@ -218,28 +218,28 @@ end
 let%test_module "Rpc" =
   (module struct
     include Setup (struct
-        type ('q, 'r) rpc = ('q, 'r) Rpc.Rpc.t
+      type ('q, 'r) rpc = ('q, 'r) Rpc.Rpc.t
 
-        let create_rpc
-              (type q r)
-              (module Q : Q with type t = q)
-              (module R : R with type t = r)
-              ~name
-              ~version
-          =
-          Rpc.Rpc.create ~name ~version ~bin_query:Q.bin_t ~bin_response:R.bin_t
-        ;;
+      let create_rpc
+        (type q r)
+        (module Q : Q with type t = q)
+        (module R : R with type t = r)
+        ~name
+        ~version
+        =
+        Rpc.Rpc.create ~name ~version ~bin_query:Q.bin_t ~bin_response:R.bin_t
+      ;;
 
-        module Callee = struct
-          module Monad = Deferred
-          include Babel.Callee.Rpc
-        end
+      module Callee = struct
+        module Monad = Deferred
+        include Babel.Callee.Rpc
+      end
 
-        module Caller = struct
-          module Monad = Deferred.Or_error
-          include Babel.Caller.Rpc
-        end
-      end)
+      module Caller = struct
+        module Monad = Deferred.Or_error
+        include Babel.Caller.Rpc
+      end
+    end)
 
     let%expect_test "callee shapes" =
       print_callee_shapes ();
@@ -431,69 +431,69 @@ let%test_module "Rpc" =
 let%test_module "Streamable_plain_rpc" =
   (module struct
     include Setup (struct
-        type ('q, 'r) rpc = ('q, 'r) Streamable.Plain_rpc.t
+      type ('q, 'r) rpc = ('q, 'r) Streamable.Plain_rpc.t
 
-        module type P = sig
-          type query
-          type response
+      module type P = sig
+        type query
+        type response
 
-          val rpc : (query, response) Streamable.Plain_rpc.t
-        end
+        val rpc : (query, response) Streamable.Plain_rpc.t
+      end
 
-        let create_rpc
-              (type q r)
-              (module Q : Q with type t = q)
-              (module R : R with type t = r)
-              ~name
-              ~version
-          =
-          let (module P : P with type query = Q.t and type response = R.t) =
-            (module struct
-              type query = Q.t
+      let create_rpc
+        (type q r)
+        (module Q : Q with type t = q)
+        (module R : R with type t = r)
+        ~name
+        ~version
+        =
+        let (module P : P with type query = Q.t and type response = R.t) =
+          (module struct
+            type query = Q.t
+            type response = R.t
+
+            include Streamable.Plain_rpc.Make (struct
+              let name = name
+              let version = version
+
+              type query = Q.t [@@deriving bin_io]
               type response = R.t
 
-              include Streamable.Plain_rpc.Make (struct
-                  let name = name
-                  let version = version
+              module Response = R
 
-                  type query = Q.t [@@deriving bin_io]
-                  type response = R.t
-
-                  module Response = R
-
-                  let client_pushes_back = false
-                end)
+              let client_pushes_back = false
             end)
-          in
-          P.rpc
-        ;;
+          end)
+        in
+        P.rpc
+      ;;
 
-        module Callee = struct
-          module Monad = Deferred.Or_error
-          include Babel.Callee.Streamable_plain_rpc
+      module Callee = struct
+        module Monad = Deferred.Or_error
+        include Babel.Callee.Streamable_plain_rpc
+      end
+
+      module Caller = struct
+        module Monad = struct
+          type 'a t = 'a Or_error.t Or_error.t Deferred.t
+
+          include Monad.Make (struct
+            type nonrec 'a t = 'a t
+
+            let bind t ~f =
+              match%bind.Deferred.Or_error t with
+              | Error _ as error -> Deferred.Or_error.return error
+              | Ok x -> f x
+            ;;
+
+            let return x = Deferred.Or_error.return (Ok x)
+            let map = `Define_using_bind
+          end)
         end
 
-        module Caller = struct
-          module Monad = struct
-            type 'a t = 'a Or_error.t Or_error.t Deferred.t
-
-            include Monad.Make (struct
-                type nonrec 'a t = 'a t
-
-                let bind t ~f =
-                  match%bind.Deferred.Or_error t with
-                  | Error _ as error -> Deferred.Or_error.return error
-                  | Ok x -> f x
-                ;;
-
-                let return x = Deferred.Or_error.return (Ok x)
-                let map = `Define_using_bind
-              end)
-          end
-
-          include Babel.Caller.Streamable_plain_rpc
-        end
-      end)
+        include Babel.Caller.Streamable_plain_rpc
+      end
+    end)
 
     let%expect_test "callee shapes" =
       print_callee_shapes ();

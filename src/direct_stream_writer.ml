@@ -36,9 +36,9 @@ let map_input_with_id (T { writer; transform; output_witness; transformation_ids
 ;;
 
 let filter_map_input_with_id
-      (T { writer; transform; output_witness; transformation_ids })
-      ~f
-      ~id
+  (T { writer; transform; output_witness; transformation_ids })
+  ~f
+  ~id
   =
   T
     { writer
@@ -91,8 +91,8 @@ module Group = struct
           -> 'a t
 
     let of_writer_exn
-          (T { writer; transform; output_witness; transformation_ids } : _ writer)
-          ~send_last_value_on_add
+      (T { writer; transform; output_witness; transformation_ids } : _ writer)
+      ~send_last_value_on_add
       =
       let group =
         Rpc.Pipe_rpc.Direct_stream_writer.Group.create ~send_last_value_on_add ()
@@ -102,13 +102,13 @@ module Group = struct
     ;;
 
     let compatible
-          (T { output_witness; transformation_ids; _ })
-          (T
-             { output_witness = writer_output_witness
-             ; transformation_ids = writer_transformation_ids
-             ; _
-             } :
-             _ writer)
+      (T { output_witness; transformation_ids; _ })
+      (T
+         { output_witness = writer_output_witness
+         ; transformation_ids = writer_transformation_ids
+         ; _
+         } :
+        _ writer)
       =
       Type_equal.Id.same output_witness writer_output_witness
       && [%compare.equal: Transformation_id.t list]
@@ -117,8 +117,8 @@ module Group = struct
     ;;
 
     let add_exn
-          (T { group; output_witness; _ })
-          (T { writer; output_witness = writer_output_witness; _ } : _ writer)
+      (T { group; output_witness; _ })
+      (T { writer; output_witness = writer_output_witness; _ } : _ writer)
       =
       let equality =
         Type_equal.Id.same_witness_exn output_witness writer_output_witness
