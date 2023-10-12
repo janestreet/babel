@@ -171,7 +171,7 @@ module Pipe_rpc = struct
     >>= Tilde_f.of_local_k Or_error.map
     >>= Tilde_f.of_local_k Result.map
     >>= Tuple2.map_fst
-    >>= Pipe.map
+    >>= Pipe_extended.map_batched
   ;;
 end
 
@@ -199,7 +199,8 @@ module Pipe_rpc_exn = struct
   ;;
 
   let map_response t =
-    Tilde_f.Let_syntax.(map_response t >>= Deferred.map >>= Tuple2.map_fst >>= Pipe.map)
+    Tilde_f.Let_syntax.(
+      map_response t >>= Deferred.map >>= Tuple2.map_fst >>= Pipe_extended.map_batched)
   ;;
 end
 
@@ -313,7 +314,7 @@ module State_rpc = struct
     >>= Tilde_f.of_local_k Or_error.map
     >>= Tilde_f.of_local_k Result.map
     >>= Tuple3.map_snd
-    >>= Pipe.map
+    >>= Pipe_extended.map_batched
   ;;
 
   let map_error t =
@@ -421,7 +422,7 @@ module Streamable_pipe_rpc = struct
       >>= Deferred.map
       >>= Tilde_f.of_local_k Or_error.map
       >>= Tilde_f.of_local_k Or_error.map
-      >>= Pipe.map)
+      >>= Pipe_extended.map_batched)
   ;;
 end
 
@@ -464,6 +465,6 @@ module Streamable_state_rpc = struct
       >>= Tilde_f.of_local_k Or_error.map
       >>= Tilde_f.of_local_k Or_error.map
       >>= Tuple2.map_snd
-      >>= Pipe.map)
+      >>= Pipe_extended.map_batched)
   ;;
 end
