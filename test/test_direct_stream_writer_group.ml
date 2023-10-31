@@ -194,3 +194,45 @@ let%expect_test "[store_last_value_and_send_on_add] works for both existing and 
   [%test_result: int] !conversions ~expect:1;
   return ()
 ;;
+
+let%expect_test "[store_last_value_and_send_on_add] will save values even when there are \
+                 no writers"
+  =
+  let callee =
+    Babel.Callee.Pipe_rpc_direct.singleton v1
+    |> Babel.Callee.Pipe_rpc_direct.map_response ~f:(fun { Response.a; b = _ } -> a)
+    |> Babel.Callee.Pipe_rpc_direct.add ~rpc:v2
+  in
+  let group = Direct_stream_writer.Group.create ~store_last_value_and_send_on_add:true in
+  let implementations = make_implementations group callee in
+  let dispatch rpc = connect_and_dispatch implementations rpc in
+  let%bind () = Direct_stream_writer.Group.write group { a = 1; b = 1 } in
+  let%bind v1_1 = dispatch v1 in
+  let%bind () = Pipe.read_exn v1_1 >>| [%test_result: int] ~expect:1 in
+  let%bind () = Direct_stream_writer.Group.write group { a = 2; b = 1 } in
+  let%bind () = Pipe.read_exn v1_1 >>| [%test_result: int] ~expect:2 in
+  Pipe.close_read v1_1;
+  let%bind () = Pipe.closed v1_1 in
+  let%bind () =
+    Deferred.repeat_until_finished () (fun () ->
+      match Direct_stream_writer.Group.length group with
+      | 0 -> return (`Finished ())
+      | _ ->
+        let%map () = Scheduler.yield_until_no_jobs_remain () in
+        `Repeat ())
+  in
+  [%test_result: int] (Direct_stream_writer.Group.length group) ~expect:0;
+  let%bind () = Direct_stream_writer.Group.write group { a = 3; b = 1 } in
+  let%bind v1_2 = dispatch v1 in
+  let%bind () = Pipe.read_exn v1_2 >>| [%test_result: int] ~expect:3 in
+  let%bind v2_1 = dispatch v2 in
+  let%bind () =
+    Pipe.read_exn v2_1 >>| [%test_result: Response.t] ~expect:{ a = 3; b = 1 }
+  in
+  let%bind () = Direct_stream_writer.Group.write group { a = 4; b = 1 } in
+  let%bind () = Pipe.read_exn v1_2 >>| [%test_result: int] ~expect:4 in
+  let%bind () =
+    Pipe.read_exn v2_1 >>| [%test_result: Response.t] ~expect:{ a = 4; b = 1 }
+  in
+  return ()
+;;
