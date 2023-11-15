@@ -17,11 +17,7 @@ module Strategy = struct
 
   let description t = Generic_rpc.description t.rpc
   let shape t = description t, Generic_rpc.shape t.rpc
-
-  let in_menu t menu =
-    let { Rpc.Description.name; version } = description t in
-    Versioned_rpc.Menu.supported_versions menu ~rpc_name:name |> Fn.flip Set.mem version
-  ;;
+  let in_menu t menu = Versioned_rpc.Menu.mem menu (description t)
 end
 
 open Strategy
