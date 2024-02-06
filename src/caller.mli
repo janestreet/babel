@@ -547,3 +547,10 @@ val map_response : ('a -> 'b) t -> f:('b -> 'c) -> ('a -> 'c) t
 (** Return whether any of strategies in the rpc protocol menu are supported by
     the dispatch function. *)
 val can_dispatch : _ t -> Versioned_rpc.Connection_with_menu.t -> bool
+
+module Expert : sig
+  (** [return rpc f] gives a [t] where {!to_dispatch_fun} returns [Ok (fun ?metadata:_
+      _conn -> f)] if [rpc] is in the menu. This may be used for more specialized uses of
+      rpcs like [Polling_state_rpc] *)
+  val return : Generic_rpc.t -> 'a -> 'a t
+end

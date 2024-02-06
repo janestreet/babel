@@ -464,3 +464,10 @@ module Streamable_state_rpc = struct
       >>= Pipe_extended.map_batched)
   ;;
 end
+
+module Expert = struct
+  let return rpc a =
+    Nonempty_list.singleton
+      { dispatch = (fun ?metadata:_ (_ : Async_rpc_kernel.Rpc.Connection.t) -> a); rpc }
+  ;;
+end
