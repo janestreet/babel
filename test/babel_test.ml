@@ -227,7 +227,12 @@ let%test_module "Rpc" =
         ~name
         ~version
         =
-        Rpc.Rpc.create ~name ~version ~bin_query:Q.bin_t ~bin_response:R.bin_t
+        Rpc.Rpc.create
+          ~name
+          ~version
+          ~bin_query:Q.bin_t
+          ~bin_response:R.bin_t
+          ~include_in_error_count:Only_on_exn
       ;;
 
       module Callee = struct

@@ -35,15 +35,20 @@ end
 open! Core
 open! Async_rpc_kernel
 
-let rpc version bin_query bin_response =
-  Rpc.Rpc.create ~name:"my-callee-converts-rpc" ~version ~bin_query ~bin_response
+let rpc version bin_query bin_response include_in_error_count =
+  Rpc.Rpc.create
+    ~name:"my-callee-converts-rpc"
+    ~version
+    ~bin_query
+    ~bin_response
+    ~include_in_error_count
 ;;
 
 (* First we explicitly define each rpc that we intend for the server to implement. *)
 
-let v1 = rpc 1 Stable.Query.V1.bin_t Stable.Response.V1.bin_t
-and v2 = rpc 2 Stable.Query.V2.bin_t Stable.Response.V1.bin_t
-and v3 = rpc 3 Stable.Query.V2.bin_t Stable.Response.V2.bin_t
+let v1 = rpc 1 Stable.Query.V1.bin_t Stable.Response.V1.bin_t Only_on_exn
+and v2 = rpc 2 Stable.Query.V2.bin_t Stable.Response.V1.bin_t Only_on_exn
+and v3 = rpc 3 Stable.Query.V2.bin_t Stable.Response.V2.bin_t Only_on_exn
 
 (* Now we define a [Babel.Callee.t]. This permits combining multiple callees with the same
    query and response types. However, since our rpcs work on different types, we use
