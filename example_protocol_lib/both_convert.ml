@@ -85,7 +85,8 @@ let%expect_test _ =
        (response 0743bf7ccae7c4a9d44998836b0cb146)))
      (((name my-both-convert-rpc) (version 1))
       (Rpc (query fa9bd13df9b004418afde2225f5c7927)
-       (response 0743bf7ccae7c4a9d44998836b0cb146)))) |}]
+       (response 0743bf7ccae7c4a9d44998836b0cb146))))
+    |}]
 ;;
 
 (* Now we define a [Babel.Callee.t]. This permits combining multiple callees with the same
@@ -108,17 +109,18 @@ let%expect_test _ =
   let () =
     [%expect
       {|
-    (Ok
-     ((my-both-convert-rpc
-       ((1
-         (Rpc (query fa9bd13df9b004418afde2225f5c7927)
-          (response 0743bf7ccae7c4a9d44998836b0cb146)))
-        (2
-         (Rpc (query 94d3b785da460869144daff623f170df)
-          (response 0743bf7ccae7c4a9d44998836b0cb146)))
-        (3
-         (Rpc (query 94d3b785da460869144daff623f170df)
-          (response fe8c6d5d25e0c5ee905d672ed01b4a45))))))) |}]
+      (Ok
+       ((my-both-convert-rpc
+         ((1
+           (Rpc (query fa9bd13df9b004418afde2225f5c7927)
+            (response 0743bf7ccae7c4a9d44998836b0cb146)))
+          (2
+           (Rpc (query 94d3b785da460869144daff623f170df)
+            (response 0743bf7ccae7c4a9d44998836b0cb146)))
+          (3
+           (Rpc (query 94d3b785da460869144daff623f170df)
+            (response fe8c6d5d25e0c5ee905d672ed01b4a45)))))))
+      |}]
   in
   (* [Babel.check_compatibility_exn] can be used to tell you which version will be
      selected when a given caller tries to query a give callee. Here, we demonstrate using

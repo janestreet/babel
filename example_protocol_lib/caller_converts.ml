@@ -83,7 +83,8 @@ let%expect_test _ =
        (response 0743bf7ccae7c4a9d44998836b0cb146)))
      (((name my-caller-converts-rpc) (version 1))
       (Rpc (query fa9bd13df9b004418afde2225f5c7927)
-       (response 0743bf7ccae7c4a9d44998836b0cb146)))) |}]
+       (response 0743bf7ccae7c4a9d44998836b0cb146))))
+    |}]
 ;;
 
 (* [Babel.Caller.dispatch_multi] creates a dispatch function that knows how to select the

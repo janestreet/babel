@@ -34,8 +34,7 @@ module Rpc : sig
 
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. *)
   val dispatch_multi
-    :  ?metadata:Async_rpc_kernel.Rpc_metadata.t
-    -> ('q, 'r) dispatch t
+    :  ('q, 'r) dispatch t
     -> Versioned_rpc.Connection_with_menu.t
     -> ('q, 'r) dispatch
 
@@ -62,8 +61,7 @@ module Rpc_exn : sig
 
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. *)
   val dispatch_multi
-    :  ?metadata:Async_rpc_kernel.Rpc_metadata.t
-    -> ('q, 'r) dispatch t
+    :  ('q, 'r) dispatch t
     -> Versioned_rpc.Connection_with_menu.t
     -> ('q, 'r) dispatch
 
@@ -114,8 +112,7 @@ module Pipe_rpc : sig
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. To
       unsubscribe, you can close the pipe. *)
   val dispatch_multi
-    :  ?metadata:Async_rpc_kernel.Rpc_metadata.t
-    -> ('q, 'r, 'e) dispatch t
+    :  ('q, 'r, 'e) dispatch t
     -> Versioned_rpc.Connection_with_menu.t
     -> ('q, 'r, 'e) dispatch
 
@@ -164,8 +161,7 @@ module Pipe_rpc_exn : sig
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. To
       unsubscribe, you can close the pipe. *)
   val dispatch_multi
-    :  ?metadata:Async_rpc_kernel.Rpc_metadata.t
-    -> ('q, 'r) dispatch t
+    :  ('q, 'r) dispatch t
     -> Versioned_rpc.Connection_with_menu.t
     -> ('q, 'r) dispatch
 
@@ -253,8 +249,7 @@ module State_rpc : sig
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. To
       unsubscribe, you can close the pipe. *)
   val dispatch_multi
-    :  ?metadata:Async_rpc_kernel.Rpc_metadata.t
-    -> ('q, 's, 'u, 'e) dispatch t
+    :  ('q, 's, 'u, 'e) dispatch t
     -> Versioned_rpc.Connection_with_menu.t
     -> ('q, 's, 'u, 'e) dispatch
 
@@ -314,8 +309,7 @@ module One_way : sig
 
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. *)
   val dispatch_multi
-    :  ?metadata:Async_rpc_kernel.Rpc_metadata.t
-    -> 'msg dispatch t
+    :  'msg dispatch t
     -> Versioned_rpc.Connection_with_menu.t
     -> 'msg dispatch
 
@@ -339,8 +333,7 @@ module One_way_exn : sig
 
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. *)
   val dispatch_multi
-    :  ?metadata:Async_rpc_kernel.Rpc_metadata.t
-    -> 'msg dispatch t
+    :  'msg dispatch t
     -> Versioned_rpc.Connection_with_menu.t
     -> 'msg dispatch
 
@@ -381,8 +374,7 @@ module Streamable_plain_rpc : sig
 
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. *)
   val dispatch_multi
-    :  ?metadata:Async_rpc_kernel.Rpc_metadata.t
-    -> ('q, 'r) dispatch t
+    :  ('q, 'r) dispatch t
     -> Versioned_rpc.Connection_with_menu.t
     -> ('q, 'r) dispatch
 
@@ -411,8 +403,7 @@ module Streamable_pipe_rpc : sig
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. To
       unsubscribe, you can close the pipe. *)
   val dispatch_multi
-    :  ?metadata:Async_rpc_kernel.Rpc_metadata.t
-    -> ('q, 'r) dispatch t
+    :  ('q, 'r) dispatch t
     -> Versioned_rpc.Connection_with_menu.t
     -> ('q, 'r) dispatch
 
@@ -455,8 +446,7 @@ module Streamable_state_rpc : sig
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. To
       unsubscribe, you can close the pipe. *)
   val dispatch_multi
-    :  ?metadata:Async_rpc_kernel.Rpc_metadata.t
-    -> ('q, 's, 'u) dispatch t
+    :  ('q, 's, 'u) dispatch t
     -> Versioned_rpc.Connection_with_menu.t
     -> ('q, 's, 'u) dispatch
 
@@ -501,10 +491,7 @@ end
 val to_dispatch_fun
   :  'a t
   -> Versioned_rpc.Menu.t
-  -> (?metadata:Async_rpc_kernel.Rpc_metadata.t
-      -> Async_rpc_kernel.Rpc.Connection.t
-      -> 'a)
-     Or_error.t
+  -> (Async_rpc_kernel.Rpc.Connection.t -> 'a) Or_error.t
 
 (** Given a version menu, returns the description of the RPC that will be called by the
     dispatch function. *)
@@ -549,8 +536,8 @@ val map_response : ('a -> 'b) t -> f:('b -> 'c) -> ('a -> 'c) t
 val can_dispatch : _ t -> Versioned_rpc.Connection_with_menu.t -> bool
 
 module Expert : sig
-  (** [return rpc f] gives a [t] where {!to_dispatch_fun} returns [Ok (fun ?metadata:_
-      _conn -> f)] if [rpc] is in the menu. This may be used for more specialized uses of
-      rpcs like [Polling_state_rpc] *)
+  (** [return rpc f] gives a [t] where {!to_dispatch_fun} returns [Ok (fun _conn -> f)] if
+      [rpc] is in the menu. This may be used for more specialized uses of rpcs like
+      [Polling_state_rpc] *)
   val return : Generic_rpc.t -> 'a -> 'a t
 end
