@@ -244,7 +244,7 @@ module State_rpc : sig
   type ('q, 's, 'u, 'e) dispatch :=
     'q
     -> ('s * 'u Pipe.Reader.t * Rpc.State_rpc.Metadata.t, 'e) Result.t Or_error.t
-       Deferred.t
+         Deferred.t
 
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. To
       unsubscribe, you can close the pipe. *)

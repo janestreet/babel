@@ -37,14 +37,12 @@ end
 let validate (t : _ t) : _ Validated.t Or_error.t =
   Map.to_alist t
   |> List.map ~f:(fun (description, implementer) ->
-       match implementer with
-       | Ok implementer -> Ok (description, implementer)
-       | Error shapes ->
-         Or_error.error_s
-           [%message
-             "Duplicate rpcs"
-               (description : Rpc.Description.t)
-               (shapes : Shape.Set.t Lazy.t)])
+    match implementer with
+    | Ok implementer -> Ok (description, implementer)
+    | Error shapes ->
+      Or_error.error_s
+        [%message
+          "Duplicate rpcs" (description : Rpc.Description.t) (shapes : Shape.Set.t Lazy.t)])
   |> Or_error.combine_errors
 ;;
 
@@ -61,7 +59,7 @@ let shapes t =
   let open Or_error.Let_syntax in
   validate t
   >>| List.map ~f:(fun (description, implementer) ->
-        description, Generic_rpc.shape implementer.rpc)
+    description, Generic_rpc.shape implementer.rpc)
 ;;
 
 let supported_rpcs t =
@@ -198,10 +196,10 @@ module Pipe_rpc_direct = struct
               ?on_exception
               rpc
               (fun connection_state query writer ->
-              f
-                connection_state
-                query
-                (Direct_stream_writer.Expert.create_witnessed writer ~witness)))
+                 f
+                   connection_state
+                   query
+                   (Direct_stream_writer.Expert.create_witnessed writer ~witness)))
       ; rpc = Pipe rpc
       }
   ;;
@@ -282,7 +280,12 @@ module One_way = struct
   let singleton rpc =
     singleton
       (Rpc.One_way.description rpc)
-      { implement = (fun ?on_exception f -> Rpc.One_way.implement ?on_exception rpc f)
+      { implement =
+          (fun ?on_exception f ->
+            Rpc.One_way.implement
+              ~on_exception:(Option.value on_exception ~default:Close_connection)
+              rpc
+              f)
       ; rpc = One_way rpc
       }
   ;;

@@ -1,5 +1,6 @@
 (library
  (name babel_test)
- (libraries async core babel core_kernel.reversed_list)
+ (libraries async core async_kernel async_rpc_kernel babel
+   core_kernel.nonempty_list core_kernel.reversed_list streamable)
  (preprocess
   (pps ppx_jane)))

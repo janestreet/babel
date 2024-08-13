@@ -1,5 +1,5 @@
 (library
  (name babel_example)
- (libraries babel)
+ (libraries async_kernel async_rpc_kernel babel core)
  (preprocess
   (pps ppx_jane)))
