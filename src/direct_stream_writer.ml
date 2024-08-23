@@ -95,7 +95,9 @@ module Group = struct
       ~send_last_value_on_add
       =
       let group =
-        Rpc.Pipe_rpc.Direct_stream_writer.Group.create ~send_last_value_on_add ()
+        if send_last_value_on_add
+        then Rpc.Pipe_rpc.Direct_stream_writer.Group.create_sending_last_value_on_add ()
+        else Rpc.Pipe_rpc.Direct_stream_writer.Group.create ()
       in
       Rpc.Pipe_rpc.Direct_stream_writer.Group.add_exn group writer;
       T { group; transform; output_witness; transformation_ids }
@@ -181,13 +183,19 @@ module Group = struct
     ; last_value : 'a Last_value_if_should_send_on_add.t
     }
 
-  let create ~store_last_value_and_send_on_add =
+  let aux_create ~store_last_value_and_send_on_add =
     { subgroups = Bag.create ()
     ; last_value =
         (if store_last_value_and_send_on_add
          then Store_and_send_on_add (Last_value.create ())
          else Do_not_store)
     }
+  ;;
+
+  let create () = aux_create ~store_last_value_and_send_on_add:false
+
+  let create_storing_last_value_and_sending_on_add () =
+    aux_create ~store_last_value_and_send_on_add:true
   ;;
 
   let add_exn { subgroups; last_value } writer =

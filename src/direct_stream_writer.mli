@@ -65,15 +65,18 @@ module Group : sig
   type 'a writer := 'a t
   type 'a t
 
-  val create
-    :  store_last_value_and_send_on_add:bool
-         (** If [true], the group will store the last value written and automatically send it
-        to each new writer when it's added to the group. *)
-    -> _ t
+  val create : unit -> _ t
+
+  (** [create_storing_last_value_and_sending_on_add] will create a group that will
+      automatically send a copy of the last value written to each new writer when it's
+      added to the group. It's split out as a separate function from [create] as it's not
+      safe to re-use a buffer between multiple different groups in this case, as the
+      previous value is stored in the buffer. *)
+  val create_storing_last_value_and_sending_on_add : unit -> _ t
 
   (** Add a direct stream writer to the group. Raises if
       [Rpc.Pipe_rpc.Direct_stream_writer.Group.add_exn] would raise. If
-      [~store_last_value_and_send_on_add:true] was passed when creating the group,
+      [create_storing_last_value_and_sending_on_add] was used to create the group,
       [add_exn] will additionally write the stored last value to the writer. This will
       only involve conversion and serialization if the new writer uses a different
       protocol than the other writers in the group. *)
