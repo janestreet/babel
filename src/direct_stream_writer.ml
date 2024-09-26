@@ -92,10 +92,13 @@ module Group = struct
 
     let of_writer_exn
       (T { writer; transform; output_witness; transformation_ids } : _ writer)
+      ~common_buffer
       ~send_last_value_on_add
       =
       let group =
-        Rpc.Pipe_rpc.Direct_stream_writer.Group.create ~send_last_value_on_add ()
+        if send_last_value_on_add
+        then Rpc.Pipe_rpc.Direct_stream_writer.Group.create_sending_last_value_on_add ()
+        else Rpc.Pipe_rpc.Direct_stream_writer.Group.create ?buffer:common_buffer ()
       in
       Rpc.Pipe_rpc.Direct_stream_writer.Group.add_exn group writer;
       T { group; transform; output_witness; transformation_ids }
@@ -125,6 +128,19 @@ module Group = struct
       in
       let T = equality in
       Rpc.Pipe_rpc.Direct_stream_writer.Group.add_exn group writer
+    ;;
+
+    let remove
+      (T { group; output_witness; _ } as group')
+      (T { writer; output_witness = writer_output_witness; _ } as writer' : _ writer)
+      =
+      if compatible group' writer'
+      then (
+        let equality =
+          Type_equal.Id.same_witness_exn output_witness writer_output_witness
+        in
+        let T = equality in
+        Rpc.Pipe_rpc.Direct_stream_writer.Group.remove group writer)
     ;;
 
     let write_without_pushback (T { group; transform; _ }) a =
@@ -179,18 +195,28 @@ module Group = struct
   type 'a t =
     { subgroups : 'a Subgroup.t Bag.t
     ; last_value : 'a Last_value_if_should_send_on_add.t
+    ; common_buffer : Rpc.Pipe_rpc.Direct_stream_writer.Group.Buffer.t option
     }
 
-  let create ~store_last_value_and_send_on_add =
+  let aux_create ~common_buffer ~store_last_value_and_send_on_add =
     { subgroups = Bag.create ()
     ; last_value =
         (if store_last_value_and_send_on_add
          then Store_and_send_on_add (Last_value.create ())
          else Do_not_store)
+    ; common_buffer
     }
   ;;
 
-  let add_exn { subgroups; last_value } writer =
+  let create ?buffer () =
+    aux_create ~common_buffer:buffer ~store_last_value_and_send_on_add:false
+  ;;
+
+  let create_storing_last_value_and_sending_on_add () =
+    aux_create ~common_buffer:None ~store_last_value_and_send_on_add:true
+  ;;
+
+  let add_exn { subgroups; last_value; common_buffer } writer =
     match Bag.find subgroups ~f:(Fn.flip Subgroup.compatible writer) with
     | Some subgroup -> Subgroup.add_exn subgroup writer
     | None ->
@@ -199,19 +225,25 @@ module Group = struct
         | Do_not_store -> false
         | Store_and_send_on_add (_ : _ Last_value.t) -> true
       in
-      let subgroup = Subgroup.of_writer_exn writer ~send_last_value_on_add in
+      let subgroup =
+        Subgroup.of_writer_exn ~common_buffer writer ~send_last_value_on_add
+      in
       Bag.add_unit subgroups subgroup;
       Option.iter
         (Last_value_if_should_send_on_add.get_last_value last_value)
         ~f:(Subgroup.write_without_pushback subgroup)
   ;;
 
-  let write_without_pushback { subgroups; last_value } a =
+  let remove { subgroups; _ } writer =
+    Bag.iter subgroups ~f:(fun subgroup -> Subgroup.remove subgroup writer)
+  ;;
+
+  let write_without_pushback { subgroups; last_value; _ } a =
     Bag.iter subgroups ~f:(Fn.flip Subgroup.write_without_pushback a);
     Last_value_if_should_send_on_add.set_last_value last_value a
   ;;
 
-  let write { subgroups; last_value } a =
+  let write { subgroups; last_value; _ } a =
     let all_written =
       Bag.to_list subgroups |> List.map ~f:(Fn.flip Subgroup.write a) |> Deferred.all_unit
     in
