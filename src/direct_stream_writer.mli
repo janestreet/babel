@@ -16,10 +16,17 @@ val map_input : 'a t -> f:('b -> 'a) -> 'b t
 val filter_map_input : 'a t -> f:('b -> 'a option) -> 'b t
 
 (** These functions work the same way as the ones in [Rpc.Pipe_rpc.Direct_stream_writer].
+
+    Note that like in [Rpc.Pipe_rpc.Direct_stream_writer], if [started t] is not
+    determined, there are some sharp edges to [write]:
+    - Messages are enqueued until the writer does start
+    - The flushed deferred returned does not actually correspond to the message being
+    flushed
 *)
 
 val write : 'a t -> 'a -> [ `Flushed of unit Deferred.t | `Closed ]
 val write_without_pushback : 'a t -> 'a -> [ `Ok | `Closed ]
+val started : _ t -> unit Deferred.t
 val close : _ t -> unit
 val closed : _ t -> unit Deferred.t
 val flushed : _ t -> unit Deferred.t
@@ -65,7 +72,8 @@ module Group : sig
   type 'a writer := 'a t
   type 'a t
 
-  val create : unit -> _ t
+  (** When [buffer] is provided, all subgroups will share the same buffer.  *)
+  val create : ?buffer:Rpc.Pipe_rpc.Direct_stream_writer.Group.Buffer.t -> unit -> _ t
 
   (** [create_storing_last_value_and_sending_on_add] will create a group that will
       automatically send a copy of the last value written to each new writer when it's
@@ -81,6 +89,10 @@ module Group : sig
       only involve conversion and serialization if the new writer uses a different
       protocol than the other writers in the group. *)
   val add_exn : 'a t -> 'a writer -> unit
+
+  (** Remove a direct stream writer from the group. Writers are automatically removed when
+      closed - see [Rpc.Pipe_rpc.Direct_stream_writer.Group.remove] *)
+  val remove : 'a t -> 'a writer -> unit
 
   (** Write a message to all direct writers in the group and then waits for flushed. *)
   val write : 'a t -> 'a -> unit Deferred.t
