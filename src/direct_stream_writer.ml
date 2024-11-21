@@ -54,6 +54,7 @@ let filter_map_input t ~f =
   filter_map_input_with_id t ~f ~id:(Transformation_id.create ())
 ;;
 
+let started (T { writer; _ }) = Rpc.Pipe_rpc.Direct_stream_writer.started writer
 let close (T { writer; _ }) = Rpc.Pipe_rpc.Direct_stream_writer.close writer
 let closed (T { writer; _ }) = Rpc.Pipe_rpc.Direct_stream_writer.closed writer
 let flushed (T { writer; _ }) = Rpc.Pipe_rpc.Direct_stream_writer.flushed writer

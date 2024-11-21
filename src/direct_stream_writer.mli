@@ -16,10 +16,17 @@ val map_input : 'a t -> f:('b -> 'a) -> 'b t
 val filter_map_input : 'a t -> f:('b -> 'a option) -> 'b t
 
 (** These functions work the same way as the ones in [Rpc.Pipe_rpc.Direct_stream_writer].
+
+    Note that like in [Rpc.Pipe_rpc.Direct_stream_writer], if [started t] is not
+    determined, there are some sharp edges to [write]:
+    - Messages are enqueued until the writer does start
+    - The flushed deferred returned does not actually correspond to the message being
+    flushed
 *)
 
 val write : 'a t -> 'a -> [ `Flushed of unit Deferred.t | `Closed ]
 val write_without_pushback : 'a t -> 'a -> [ `Ok | `Closed ]
+val started : _ t -> unit Deferred.t
 val close : _ t -> unit
 val closed : _ t -> unit Deferred.t
 val flushed : _ t -> unit Deferred.t
