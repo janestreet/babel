@@ -2,6 +2,6 @@
  (name babel)
  (public_name babel)
  (libraries async_kernel async_rpc_kernel core core_kernel.nonempty_list
-   streamable tilde_f)
+   pipe_with_writer_error streamable tilde_f)
  (preprocess
   (pps ppx_jane)))

@@ -10,10 +10,10 @@
     the protocol is assumed to work as follows:
 
     + Define the newest version and expose it in [Server]. This forces you to update the
-    call site of [implement].
+      call site of [implement].
     + Roll the servers.
     + Expose the newest version in [Client]. This forces you to update call sites of
-    [dispatch].
+      [dispatch].
     + Roll the clients.
 
     This module is demonstrating what things could look like after upgrading
