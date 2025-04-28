@@ -128,6 +128,13 @@ module Pipe_rpc = struct
 
   let dispatch_multi = dispatch_multi_or_error_deferred
 
+  let dispatch_multi_with_close_reason t connection query =
+    Deferred.Or_error.map (dispatch_multi t connection query) ~f:(fun result ->
+      Result.map
+        result
+        ~f:Async_rpc_kernel.Rpc.Pipe_rpc.pipe_with_writer_error_of_pipe_and_metadata)
+  ;;
+
   let singleton rpc =
     Nonempty_list.singleton { dispatch = Rpc.Pipe_rpc.dispatch rpc; rpc = Pipe rpc }
   ;;
@@ -168,6 +175,11 @@ module Pipe_rpc_exn = struct
   open Async_rpc_kernel
 
   let dispatch_multi = dispatch_multi_exn
+
+  let dispatch_multi_with_close_reason t connection query =
+    dispatch_multi t connection query
+    >>| Async_rpc_kernel.Rpc.Pipe_rpc.pipe_with_writer_error_of_pipe_and_metadata
+  ;;
 
   let singleton rpc =
     Nonempty_list.singleton { dispatch = Rpc.Pipe_rpc.dispatch_exn rpc; rpc = Pipe rpc }

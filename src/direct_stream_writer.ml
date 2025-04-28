@@ -170,9 +170,7 @@ module Group = struct
     let get t = Option.map (Set_once.get t) ~f:( ! )
 
     let set t a =
-      if Set_once.is_none t
-      then Set_once.set_exn t [%here] (ref a)
-      else Set_once.get_exn t [%here] := a
+      if Set_once.is_none t then Set_once.set_exn t (ref a) else Set_once.get_exn t := a
     ;;
   end
 

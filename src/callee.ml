@@ -142,15 +142,17 @@ end
 module Pipe_rpc = struct
   open Async_rpc_kernel
 
-  let singleton rpc =
+  let singleton ?leave_open_on_exception rpc =
     singleton
       (Rpc.Pipe_rpc.description rpc)
-      { implement = (fun ?on_exception f -> Rpc.Pipe_rpc.implement ?on_exception rpc f)
+      { implement =
+          (fun ?on_exception f ->
+            Rpc.Pipe_rpc.implement ?on_exception ?leave_open_on_exception rpc f)
       ; rpc = Pipe rpc
       }
   ;;
 
-  let add = adder ~f:singleton
+  let add ?leave_open_on_exception = adder ~f:(singleton ?leave_open_on_exception)
   let map_query = map_query
 
   let map_error t =
@@ -179,7 +181,7 @@ module Pipe_rpc_direct = struct
   open Async_rpc_kernel
   module Direct_stream_writer = Direct_stream_writer
 
-  let singleton rpc =
+  let singleton ?leave_open_on_exception rpc =
     let description = Rpc.Pipe_rpc.description rpc in
     let description_sexp = [%sexp_of: Rpc.Description.t] description in
     let witness =
@@ -194,6 +196,7 @@ module Pipe_rpc_direct = struct
           (fun ?on_exception f ->
             Rpc.Pipe_rpc.implement_direct
               ?on_exception
+              ?leave_open_on_exception
               rpc
               (fun connection_state query writer ->
                  f
@@ -204,7 +207,7 @@ module Pipe_rpc_direct = struct
       }
   ;;
 
-  let add = adder ~f:singleton
+  let add ?leave_open_on_exception = adder ~f:(singleton ?leave_open_on_exception)
   let map_query = map_query
 
   let map_error t =
@@ -234,15 +237,17 @@ end
 module State_rpc = struct
   open Async_rpc_kernel
 
-  let singleton rpc =
+  let singleton ?leave_open_on_exception rpc =
     singleton
       (Rpc.State_rpc.description rpc)
-      { implement = (fun ?on_exception f -> Rpc.State_rpc.implement ?on_exception rpc f)
+      { implement =
+          (fun ?on_exception f ->
+            Rpc.State_rpc.implement ?on_exception ?leave_open_on_exception rpc f)
       ; rpc = State rpc
       }
   ;;
 
-  let add = adder ~f:singleton
+  let add ?leave_open_on_exception = adder ~f:(singleton ?leave_open_on_exception)
   let map_query = map_query
 
   let map_state t =
@@ -314,16 +319,17 @@ module Streamable_plain_rpc = struct
 end
 
 module Streamable_pipe_rpc = struct
-  let singleton rpc =
+  let singleton ?leave_open_on_exception rpc =
     singleton
       (Streamable.Pipe_rpc.description rpc)
       { implement =
-          (fun ?on_exception f -> Streamable.Pipe_rpc.implement ?on_exception rpc f)
+          (fun ?on_exception f ->
+            Streamable.Pipe_rpc.implement ?on_exception ?leave_open_on_exception rpc f)
       ; rpc = Streamable_pipe rpc
       }
   ;;
 
-  let add = adder ~f:singleton
+  let add ?leave_open_on_exception = adder ~f:(singleton ?leave_open_on_exception)
   let map_query = map_query
 
   let filter_map_response t =
@@ -344,16 +350,17 @@ module Streamable_pipe_rpc = struct
 end
 
 module Streamable_state_rpc = struct
-  let singleton rpc =
+  let singleton ?leave_open_on_exception rpc =
     singleton
       (Streamable.State_rpc.description rpc)
       { implement =
-          (fun ?on_exception f -> Streamable.State_rpc.implement ?on_exception rpc f)
+          (fun ?on_exception f ->
+            Streamable.State_rpc.implement ?on_exception ?leave_open_on_exception rpc f)
       ; rpc = Streamable_state rpc
       }
   ;;
 
-  let add = adder ~f:singleton
+  let add ?leave_open_on_exception = adder ~f:(singleton ?leave_open_on_exception)
   let map_query = map_query
 
   let map_state t =

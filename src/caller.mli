@@ -5,22 +5,18 @@ open Async_rpc_kernel
 (** An [a t] selects a dispatch function of type [a], which will typically be a function
     type, given a version menu supplied by the server.
 
-    In order to use this interface, the callee must provide a version menu. Use
-    [Async.Versioned_rpc.Menu.add] for this.
-
     NOTE Babel does not catch exceptions raised by caller conversion functions. *)
 type +_ t
 
-(** The protocols supported by the caller in order from most preferred to least preferred.
-*)
+(** The protocols supported by the caller in order from most preferred to least preferred. *)
 val shapes : _ t -> (Rpc.Description.t * Shape.t) Nonempty_list.t
 
 val descriptions : _ t -> Rpc.Description.t Nonempty_list.t
 val supported_rpcs : _ t -> Generic_rpc.t Nonempty_list.t
 
 (** Print the required set of protocols for each supported dispatching strategy in order
-    from most preferred to least preferred. This is useful for demonstrating the final
-    set of protocols in an expect test. *)
+    from most preferred to least preferred. This is useful for demonstrating the final set
+    of protocols in an expect test. *)
 val print_shapes : _ t -> unit
 
 (** [of_list_decreasing_preference ts] results in a caller that picks the first [t] in
@@ -109,12 +105,22 @@ module Pipe_rpc : sig
   type ('q, 'r, 'e) dispatch :=
     'q -> ('r Pipe.Reader.t * Rpc.Pipe_rpc.Metadata.t, 'e) Result.t Or_error.t Deferred.t
 
+  type ('q, 'r, 'e) dispatch_with_close_reason :=
+    'q -> (('r, Error.t) Pipe_with_writer_error.t, 'e) Result.t Or_error.t Deferred.t
+
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. To
       unsubscribe, you can close the pipe. *)
   val dispatch_multi
     :  ('q, 'r, 'e) dispatch t
     -> Versioned_rpc.Connection_with_menu.t
     -> ('q, 'r, 'e) dispatch
+
+  (** [dispatch_multi] but requires handling of the [Pipe_close_reason] when there is an
+      [Error]. [Closed_locally] and [Closed_remotely] are not considered errors. *)
+  val dispatch_multi_with_close_reason
+    :  ('q, 'r, 'e) dispatch t
+    -> Versioned_rpc.Connection_with_menu.t
+    -> ('q, 'r, 'e) dispatch_with_close_reason
 
   (** Create a new caller supporting a single rpc. *)
   val singleton : ('q, 'r, 'e) Rpc.Pipe_rpc.t -> ('q, 'r, 'e) dispatch t
@@ -152,11 +158,14 @@ module Pipe_rpc : sig
 end
 
 (** High level functions for working with callers in the style of
-    [Async.Rpc.Pipe_rpc.dispatch_exn].  *)
+    [Async.Rpc.Pipe_rpc.dispatch_exn]. *)
 module Pipe_rpc_exn : sig
   open Async_rpc_kernel
 
   type ('q, 'r) dispatch := 'q -> ('r Pipe.Reader.t * Rpc.Pipe_rpc.Metadata.t) Deferred.t
+
+  type ('q, 'r) dispatch_with_close_reason :=
+    'q -> ('r, Error.t) Pipe_with_writer_error.t Deferred.t
 
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. To
       unsubscribe, you can close the pipe. *)
@@ -164,6 +173,13 @@ module Pipe_rpc_exn : sig
     :  ('q, 'r) dispatch t
     -> Versioned_rpc.Connection_with_menu.t
     -> ('q, 'r) dispatch
+
+  (** [dispatch_multi] but requires handling of the [Pipe_close_reason] when there is an
+      [Error]. [Closed_locally] and [Closed_remotely] are not considered errors. *)
+  val dispatch_multi_with_close_reason
+    :  ('q, 'r) dispatch t
+    -> Versioned_rpc.Connection_with_menu.t
+    -> ('q, 'r) dispatch_with_close_reason
 
   (** Create a new caller supporting a single rpc. *)
   val singleton : ('q, 'r, _) Rpc.Pipe_rpc.t -> ('q, 'r) dispatch t
@@ -181,8 +197,7 @@ module Pipe_rpc_exn : sig
       sometimes it might not be possible to convert the response to the desired type, in
       which case it may be appropriate to drop the value from the pipe entirely. For such
       cases, use [Caller.map_response] instead. It gives you access to the pipe itself,
-      not just the values inside it, allowing you to use something like
-      [Pipe.filter_map]. *)
+      not just the values inside it, allowing you to use something like [Pipe.filter_map]. *)
   val map_response : ('q, 'r1) dispatch t -> f:('r1 -> 'r2) -> ('q, 'r2) dispatch t
 
   (** Same as [map_response] but filters out some responses from the response pipe *)
@@ -426,8 +441,7 @@ module Streamable_pipe_rpc : sig
       sometimes it might not be possible to convert the response to the desired type, in
       which case it may be appropriate to drop the value from the pipe entirely. For such
       cases, use [Caller.map_response] instead. It gives you access to the pipe itself,
-      not just the values inside it, allowing you to use something like [Pipe.filter_map].
-  *)
+      not just the values inside it, allowing you to use something like [Pipe.filter_map]. *)
   val map_response : ('q, 'r1) dispatch t -> f:('r1 -> 'r2) -> ('q, 'r2) dispatch t
 
   (** Same as [map_response] but filters out some responses from the response pipe *)
@@ -472,8 +486,7 @@ module Streamable_state_rpc : sig
       sometimes it might not be possible to convert the response to the desired type, in
       which case it may be appropriate to drop the value from the pipe entirely. For such
       cases, use [Caller.map_response] instead. It gives you access to the pipe itself,
-      not just the values inside it, allowing you to use something like [Pipe.filter_map].
-  *)
+      not just the values inside it, allowing you to use something like [Pipe.filter_map]. *)
   val map_update : ('q, 's, 'u1) dispatch t -> f:('u1 -> 'u2) -> ('q, 's, 'u2) dispatch t
 
   (** Same as [map_update] but filters out some responses from the response pipe *)
@@ -504,10 +517,7 @@ val description
     usually working with functions, it may be enlightening to think of the type as:
 
     {[
-      val map
-        :  ('a1 -> 'b1) t
-        -> f:(('a1 -> 'b1) -> 'a2 -> 'b2)
-        -> ('a2 -> 'b2) t
+      val map : ('a1 -> 'b1) t -> f:(('a1 -> 'b1) -> 'a2 -> 'b2) -> ('a2 -> 'b2) t
     ]}
 
     Most of the time you should use the higher-level [map_query] and [map_response]
@@ -531,8 +541,8 @@ val map_query : ('a -> 'b) t -> f:('c -> 'a) -> ('c -> 'b) t
     should prefer to use more specialized functions, such as [Rpc.map_response]. *)
 val map_response : ('a -> 'b) t -> f:('b -> 'c) -> ('a -> 'c) t
 
-(** Return whether any of strategies in the rpc protocol menu are supported by
-    the dispatch function. *)
+(** Return whether any of strategies in the rpc protocol menu are supported by the
+    dispatch function. *)
 val can_dispatch : _ t -> Versioned_rpc.Connection_with_menu.t -> bool
 
 module Expert : sig

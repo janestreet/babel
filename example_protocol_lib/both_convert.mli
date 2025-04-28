@@ -9,8 +9,7 @@
     upgradable and downgradable.
 
     In this "both convert" style of versioned protocols, you have to use a version menu.
-    The server should use [Versioned_rpc.Menu.add] before starting the Rpc server. Clients
-    will have to create a [Versioned_rpc.Connection_with_menu.t] in order to use
+    Clients will have to create a [Versioned_rpc.Connection_with_menu.t] in order to use
     [dispatch]. *)
 
 open! Core

@@ -10,19 +10,18 @@
     the protocol is assumed to work as follows:
 
     + Define the newest version and expose it in [Client]. This forces you to update call
-    sites of [dispatch].
+      sites of [dispatch].
     + Roll the clients.
     + Expose the newest version in [Server]. This forces you to update the call site of
-    [implement].
+      [implement].
     + Roll the servers.
 
     This module is demonstrating what things could look like after upgrading
     [Client.Response] but before upgrading [Server.Response].
 
     In this "caller converts" style of versioned protocols, you have to use a version
-    menu. The server should use [Versioned_rpc.Menu.add] before starting the Rpc server.
-    Clients will have to create a [Versioned_rpc.Connection_with_menu.t] in order to use
-    [dispatch]. *)
+    menu. Clients will have to create a [Versioned_rpc.Connection_with_menu.t] in order to
+    use [dispatch]. *)
 
 open! Core
 open! Async_kernel
