@@ -269,6 +269,63 @@ module State_rpc : sig
 end
 
 (** High level functions for working with callees in the style of
+    [Async.Rpc.State_rpc.implement_direct].
+
+    This isn't quite a drop-in replacement because users will need to switch from
+    [Rpc.Pipe_rpc.Direct_stream_writer] to Babel's [Direct_stream_writer], but most of the
+    same functions are supported. *)
+module State_rpc_direct : sig
+  open Async_rpc_kernel
+  module Direct_stream_writer = Pipe_rpc_direct.Direct_stream_writer
+
+  type ('q, 's, 'u, 'e) implementation :=
+    'q -> 'u Direct_stream_writer.t -> ('s, 'e) Result.t Deferred.t
+
+  (** Create a callee which can implement a given rpc. *)
+  val singleton
+    :  ?leave_open_on_exception:bool (** default: See [Async_rpc.Pipe_rpc.implement] *)
+    -> ('q, 's, 'u, 'e) Rpc.State_rpc.t
+    -> ('q, 's, 'u, 'e) implementation t
+
+  (** Extend a callee to be able to implement a given rpc. *)
+  val add
+    :  ?leave_open_on_exception:bool (** default: See [Async_rpc.Pipe_rpc.implement] *)
+    -> ('q, 's, 'u, 'e) implementation t
+    -> rpc:('q, 's, 'u, 'e) Rpc.State_rpc.t
+    -> ('q, 's, 'u, 'e) implementation t
+
+  (** Map over the query type of a callee. *)
+  val map_query
+    :  ('q1, 's, 'u, 'e) implementation t
+    -> f:('q1 -> 'q2)
+    -> ('q2, 's, 'u, 'e) implementation t
+
+  (** Map over the state type of a callee. *)
+  val map_state
+    :  ('q, 's1, 'u, 'e) implementation t
+    -> f:('s2 -> 's1)
+    -> ('q, 's2, 'u, 'e) implementation t
+
+  (** Map over the update type of a callee. *)
+  val map_update
+    :  ('q, 's, 'u1, 'e) implementation t
+    -> f:('u2 -> 'u1)
+    -> ('q, 's, 'u2, 'e) implementation t
+
+  (** Map over the update type of a callee, possibly filtering out some updates. *)
+  val filter_map_update
+    :  ('q, 's, 'u1, 'e) implementation t
+    -> f:('u2 -> 'u1 option)
+    -> ('q, 's, 'u2, 'e) implementation t
+
+  (** Map over the error type of a callee. *)
+  val map_error
+    :  ('q, 's, 'u, 'e1) implementation t
+    -> f:('e2 -> 'e1)
+    -> ('q, 's, 'u, 'e2) implementation t
+end
+
+(** High level functions for working with callees in the style of
     [Async.Rpc.One_way.implement]. *)
 module One_way : sig
   open Async_rpc_kernel

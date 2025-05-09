@@ -276,6 +276,12 @@ module State_rpc = struct
 
   let dispatch_multi = dispatch_multi_or_error_deferred
 
+  let dispatch_multi_with_close_reason t connection query =
+    Deferred.Or_error.map (dispatch_multi t connection query) ~f:(fun result ->
+      Result.map result ~f:(fun (state, pipe, metadata) ->
+        state, Rpc.Pipe_rpc.pipe_with_writer_error_of_pipe_and_metadata (pipe, metadata)))
+  ;;
+
   let singleton rpc =
     Nonempty_list.singleton { dispatch = Rpc.State_rpc.dispatch rpc; rpc = State rpc }
   ;;

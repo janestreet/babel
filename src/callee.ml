@@ -279,6 +279,68 @@ module State_rpc = struct
   ;;
 end
 
+module State_rpc_direct = struct
+  open Async_rpc_kernel
+  module Direct_stream_writer = Direct_stream_writer
+
+  let singleton ?leave_open_on_exception rpc =
+    let description = Rpc.State_rpc.description rpc in
+    let description_sexp = [%sexp_of: Rpc.Description.t] description in
+    let witness =
+      Type_equal.Id.create
+        ~name:
+          [%string "[Babel.Callee.State_rpc_direct] type id for %{description_sexp#Sexp}"]
+        [%sexp_of: _]
+    in
+    singleton
+      description
+      { implement =
+          (fun ?on_exception f ->
+            Rpc.State_rpc.implement_direct
+              ?on_exception
+              ?leave_open_on_exception
+              rpc
+              (fun connection_state query writer ->
+                 f
+                   connection_state
+                   query
+                   (Direct_stream_writer.Expert.create_witnessed writer ~witness)))
+      ; rpc = State rpc
+      }
+  ;;
+
+  let add ?leave_open_on_exception = adder ~f:(singleton ?leave_open_on_exception)
+  let map_query = map_query
+
+  let map_state t =
+    Tilde_f.Let_syntax.(
+      map_response t >>= Fn.map >>= Deferred.map >>= Tilde_f.of_local_k Result.map)
+  ;;
+
+  let filter_map_update t ~f =
+    let id = Direct_stream_writer.Expert.Transformation_id.create () in
+    Tilde_f.Let_syntax.(
+      map_response t
+      >>= Fn.map_input
+      >>= Direct_stream_writer.Expert.filter_map_input_with_id ~id)
+      ~f
+  ;;
+
+  let map_update t ~f =
+    let id = Direct_stream_writer.Expert.Transformation_id.create () in
+    Tilde_f.Let_syntax.(
+      map_response t
+      >>= Fn.map_input
+      >>= Direct_stream_writer.Expert.map_input_with_id ~id)
+      ~f
+  ;;
+
+  let map_error t =
+    Tilde_f.Let_syntax.(
+      map_response t >>= Fn.map >>= Deferred.map >>= Tilde_f.of_local_k Result.map_error)
+  ;;
+end
+
 module One_way = struct
   open Async_rpc_kernel
 

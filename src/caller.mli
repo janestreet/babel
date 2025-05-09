@@ -261,12 +261,22 @@ module State_rpc : sig
     -> ('s * 'u Pipe.Reader.t * Rpc.State_rpc.Metadata.t, 'e) Result.t Or_error.t
          Deferred.t
 
+  type ('q, 's, 'u, 'e) dispatch_with_close_reason :=
+    'q -> ('s * ('u, Error.t) Pipe_with_writer_error.t, 'e) Result.t Or_error.t Deferred.t
+
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. To
       unsubscribe, you can close the pipe. *)
   val dispatch_multi
     :  ('q, 's, 'u, 'e) dispatch t
     -> Versioned_rpc.Connection_with_menu.t
     -> ('q, 's, 'u, 'e) dispatch
+
+  (** [dispatch_multi] but requires handling of the [Pipe_close_reason] when there is an
+      [Error]. [Closed_locally] and [Closed_remotely] are not considered errors. *)
+  val dispatch_multi_with_close_reason
+    :  ('q, 's, 'u, 'e) dispatch t
+    -> Versioned_rpc.Connection_with_menu.t
+    -> ('q, 's, 'u, 'e) dispatch_with_close_reason
 
   (** Create a new caller supporting a single rpc. *)
   val singleton : ('q, 's, 'u, 'e) Rpc.State_rpc.t -> ('q, 's, 'u, 'e) dispatch t
