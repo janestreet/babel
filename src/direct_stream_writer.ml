@@ -251,11 +251,8 @@ module Group = struct
   ;;
 
   let length t =
-    Bag.sum
-      (module Int)
-      t.subgroups
-      ~f:(fun (Subgroup.T { group; _ }) ->
-        Rpc.Pipe_rpc.Direct_stream_writer.Group.length group)
+    Bag.sum (module Int) t.subgroups ~f:(fun (Subgroup.T { group; _ }) ->
+      Rpc.Pipe_rpc.Direct_stream_writer.Group.length group)
   ;;
 
   module For_testing = struct
