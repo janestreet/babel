@@ -32,7 +32,7 @@ module T = struct
         ; state : Bin_prot.Shape.Digest.t
         ; update : Bin_prot.Shape.Digest.t
         }
-  [@@deriving compare, sexp_of]
+  [@@deriving compare ~localize, sexp_of]
 end
 
 include T
