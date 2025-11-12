@@ -155,6 +155,10 @@ module Group = struct
       | None -> return ()
       | Some a -> Rpc.Pipe_rpc.Direct_stream_writer.Group.write group a
     ;;
+
+    let flushed_or_closed (T { group; _ }) =
+      Rpc.Pipe_rpc.Direct_stream_writer.Group.flushed_or_closed group
+    ;;
   end
 
   module Last_value : sig
@@ -248,6 +252,10 @@ module Group = struct
     in
     Last_value_if_should_send_on_add.set_last_value last_value a;
     all_written
+  ;;
+
+  let flushed_or_closed { subgroups; _ } =
+    Bag.to_list subgroups |> List.map ~f:Subgroup.flushed_or_closed |> Deferred.all_unit
   ;;
 
   let length t =

@@ -99,6 +99,10 @@ module Group : sig
   (** Write a message to all direct writers in the group without waiting for flushed. *)
   val write_without_pushback : 'a t -> 'a -> unit
 
+  (** [flushed_or_closed t] is determined when the underlying writer for each member of
+      [t] is flushed or closed. *)
+  val flushed_or_closed : 'a t -> unit Deferred.t
+
   (** Number of elements in the group *)
   val length : _ t -> int
 

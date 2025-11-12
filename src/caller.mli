@@ -95,6 +95,9 @@ module Rpc' : sig
 
   (** A specialization of [map] for the response type of a protocol. *)
   val map_response : ('q, 'r1) dispatch t -> f:('r1 -> 'r2) -> ('q, 'r2) dispatch t
+
+  (** Convert Rpc' style caller to Rpc style caller *)
+  val to_rpc_style : ('q, 'r) dispatch t -> ('q -> 'r Or_error.t Deferred.t) t
 end
 
 (** High level functions for working with callers in the style of
@@ -155,6 +158,57 @@ module Pipe_rpc : sig
 
   (** A specialization of [map] for the error type of a protocol. *)
   val map_error : ('q, 'r, 'e1) dispatch t -> f:('e1 -> 'e2) -> ('q, 'r, 'e2) dispatch t
+end
+
+(** High level functions for working with callers in the style of
+    [Async.Rpc.Pipe_rpc.dispatch']. *)
+module Pipe_rpc' : sig
+  open Async_rpc_kernel
+
+  type ('q, 'r, 'e) dispatch :=
+    'q
+    -> ('r Pipe.Reader.t * Rpc.Pipe_rpc.Metadata.t, 'e) Result.t Rpc_result.t Deferred.t
+
+  (** Create a new caller supporting a single rpc. *)
+  val singleton : ('q, 'r, 'e) Rpc.Pipe_rpc.t -> ('q, 'r, 'e) dispatch t
+
+  (** Add support for dispatching another rpc. [dispatch_multi] will prefer this rpc over
+      the ones the caller already supports. *)
+  val add
+    :  ('q, 'r, 'e) dispatch t
+    -> rpc:('q, 'r, 'e) Rpc.Pipe_rpc.t
+    -> ('q, 'r, 'e) dispatch t
+
+  (** A specialization of [map] for the query type of a protocol. *)
+  val map_query : ('q1, 'r, 'e) dispatch t -> f:('q2 -> 'q1) -> ('q2, 'r, 'e) dispatch t
+
+  (** A specialization of [map] for the response type of a protocol.
+
+      Sometimes, [Caller.Pipe_rpc'.map_response] is not sufficient. For example, sometimes
+      it might not be possible to convert the response to the desired type, in which case
+      it may be appropriate to drop the value from the pipe entirely. For such cases, use
+      [Caller.map_response] instead. It gives you access to the pipe itself, not just the
+      values inside it, allowing you to use something like [Pipe.filter_map]. *)
+  val map_response
+    :  ('q, 'r1, 'e) dispatch t
+    -> f:('r1 -> 'r2)
+    -> ('q, 'r2, 'e) dispatch t
+
+  (** Same as [map_response] but filters out some responses from the response pipe *)
+  val filter_map_response
+    :  ('q, 'r1, 'e) dispatch t
+    -> f:('r1 -> 'r2 option)
+    -> ('q, 'r2, 'e) dispatch t
+
+  (** A specialization of [map] for the error type of a protocol. *)
+  val map_error : ('q, 'r, 'e1) dispatch t -> f:('e1 -> 'e2) -> ('q, 'r, 'e2) dispatch t
+
+  (** Convert Pipe_rpc' style caller to Pipe_rpc style caller *)
+  val to_pipe_rpc_style
+    :  ('q, 'r, 'e) dispatch t
+    -> ('q
+        -> ('r Pipe.Reader.t * Rpc.Pipe_rpc.Metadata.t, 'e) Result.t Or_error.t Deferred.t)
+         t
 end
 
 (** High level functions for working with callers in the style of
@@ -554,6 +608,17 @@ val map_response : ('a -> 'b) t -> f:('b -> 'c) -> ('a -> 'c) t
 (** Return whether any of strategies in the rpc protocol menu are supported by the
     dispatch function. *)
 val can_dispatch : _ t -> Versioned_rpc.Connection_with_menu.t -> bool
+
+module Strategy : sig
+  (** A dispatch strategy that already knows which RPC to dispatch. *)
+  type +'a t
+
+  val dispatch : 'a t -> Async_rpc_kernel.Rpc.Connection.t -> 'a
+  val description : _ t -> Async_rpc_kernel.Rpc.Description.t
+  val shape : _ t -> Shape.t
+end
+
+val to_strategy : 'a t -> Versioned_rpc.Menu.t -> 'a Strategy.t Or_error.t
 
 module Expert : sig
   (** [return rpc f] gives a [t] where {!to_dispatch_fun} returns [Ok (fun _conn -> f)] if

@@ -243,3 +243,77 @@ let%expect_test "[store_last_value_and_send_on_add] will save values even when t
   in
   return ()
 ;;
+
+let%expect_test "[flushed_or_closed] completes when all writers are flushed" =
+  let callee =
+    Babel.Callee.Pipe_rpc_direct.singleton v1
+    |> Babel.Callee.Pipe_rpc_direct.map_response ~f:Stable.Response.V2.a
+    |> Babel.Callee.Pipe_rpc_direct.add ~rpc:v2
+  in
+  let group = Direct_stream_writer.Group.create () in
+  let implementations = make_implementations group callee in
+  let dispatch rpc = connect_and_dispatch implementations rpc in
+  let%bind a1 = dispatch v1 in
+  let%bind a2 = dispatch v2 in
+  Direct_stream_writer.Group.write_without_pushback group { a = 5; b = 1 };
+  let flushed = Direct_stream_writer.Group.flushed_or_closed group in
+  let%bind () = Pipe.read_exn a1 >>| [%test_result: int] ~expect:5 in
+  let%bind () =
+    Pipe.read_exn a2 >>| [%test_result: Response.t] ~expect:{ a = 5; b = 1 }
+  in
+  let%bind () = flushed in
+  return ()
+;;
+
+let%expect_test "[flushed_or_closed] completes when writers are closed" =
+  let callee = Babel.Callee.Pipe_rpc_direct.singleton v1 in
+  let group = Direct_stream_writer.Group.create () in
+  let implementations = make_implementations group callee in
+  let dispatch rpc = connect_and_dispatch implementations rpc in
+  let%bind a1 = dispatch v1 in
+  let%bind a2 = dispatch v1 in
+  Direct_stream_writer.Group.write_without_pushback group 10;
+  let flushed = Direct_stream_writer.Group.flushed_or_closed group in
+  Pipe.close_read a1;
+  Pipe.close_read a2;
+  let%bind () = flushed in
+  return ()
+;;
+
+let%expect_test "[flushed_or_closed] completes immediately for empty group" =
+  let group = Direct_stream_writer.Group.create () in
+  [%test_result: int] (Direct_stream_writer.Group.length group) ~expect:0;
+  let%bind () = Direct_stream_writer.Group.flushed_or_closed group in
+  return ()
+;;
+
+let%expect_test "[flushed_or_closed] waits for all subgroups to be flushed" =
+  let callee =
+    Babel.Callee.of_list
+      [ Babel.Callee.Pipe_rpc_direct.singleton v1
+        |> Babel.Callee.Pipe_rpc_direct.map_response ~f:Stable.Response.V2.a
+        |> Babel.Callee.Pipe_rpc_direct.add ~rpc:v2
+      ; Babel.Callee.Pipe_rpc_direct.singleton v1_alt
+        |> Babel.Callee.Pipe_rpc_direct.map_response ~f:Stable.Response.V2.b
+        |> Babel.Callee.Pipe_rpc_direct.add ~rpc:v2_alt
+      ]
+  in
+  let group = Direct_stream_writer.Group.create () in
+  let implementations = make_implementations group callee in
+  let dispatch rpc = connect_and_dispatch implementations rpc in
+  let subgroups () = Direct_stream_writer.Group.For_testing.num_subgroups group in
+  let%bind a1 = dispatch v1 in
+  let%bind a2 = dispatch v2 in
+  let%bind b1 = dispatch v1_alt in
+  let%bind b2 = dispatch v2_alt in
+  [%test_result: int] (subgroups ()) ~expect:4;
+  let value : Response.t = { a = 5; b = 1 } in
+  Direct_stream_writer.Group.write_without_pushback group value;
+  let flushed = Direct_stream_writer.Group.flushed_or_closed group in
+  let%bind () = Pipe.read_exn a1 >>| [%test_result: int] ~expect:5 in
+  let%bind () = Pipe.read_exn b1 >>| [%test_result: int] ~expect:1 in
+  let%bind () = Pipe.read_exn a2 >>| [%test_result: Response.t] ~expect:value in
+  let%bind () = Pipe.read_exn b2 >>| [%test_result: Response.t] ~expect:value in
+  let%bind () = flushed in
+  return ()
+;;

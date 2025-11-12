@@ -16,7 +16,7 @@ module Strategy = struct
   ;;
 
   let description t = Generic_rpc.description t.rpc
-  let shape t = description t, Generic_rpc.shape t.rpc
+  let shape t = Generic_rpc.shape t.rpc
   let in_menu t menu = Versioned_rpc.Menu.mem menu (description t)
 end
 
@@ -25,7 +25,7 @@ open Strategy
 type 'a t = 'a Strategy.t Nonempty_list.t
 
 let map t ~f = Nonempty_list.map t ~f:(fun s -> Strategy.map ~f s)
-let shapes t = Nonempty_list.map t ~f:Strategy.shape
+let shapes t = Nonempty_list.map t ~f:(fun s -> Strategy.description s, Strategy.shape s)
 let supported_rpcs t = Nonempty_list.map t ~f:Strategy.rpc
 let descriptions t = Nonempty_list.map t ~f:Strategy.description
 
@@ -33,7 +33,7 @@ let print_shapes t =
   print_s [%sexp (shapes t : (Rpc.Description.t * Shape.t) Nonempty_list.t)]
 ;;
 
-let find_strategy t menu =
+let to_strategy t menu =
   match Nonempty_list.find t ~f:(fun strategy -> Strategy.in_menu strategy menu) with
   | Some strategy -> Ok strategy
   | None ->
@@ -46,15 +46,15 @@ let find_strategy t menu =
           (caller_rpcs : Rpc.Description.t Nonempty_list.t)]
 ;;
 
-let to_dispatch_fun t menu = find_strategy t menu |> Or_error.map ~f:Strategy.dispatch
-let description t menu = find_strategy t menu |> Or_error.map ~f:Strategy.description
+let to_dispatch_fun t menu = to_strategy t menu |> Or_error.map ~f:Strategy.dispatch
+let description t menu = to_strategy t menu |> Or_error.map ~f:Strategy.description
 let of_list_decreasing_preference = Nonempty_list.concat
 let map_query t = Tilde_f.Let_syntax.(map t >>= Fn.map_input)
 let map_response t = Tilde_f.Let_syntax.(map t >>= Fn.map)
 
 let can_dispatch t connection_with_menu =
   let menu = Versioned_rpc.Connection_with_menu.menu connection_with_menu in
-  find_strategy t menu |> Or_error.is_ok
+  to_strategy t menu |> Or_error.is_ok
 ;;
 
 let dispatch_multi t connection_with_menu query ~on_error =
@@ -106,6 +106,20 @@ module Rpc' = struct
 
   let map_response t =
     Tilde_f.Let_syntax.(map_response t >>= Deferred.map >>= Tilde_f.of_local_k Result.map)
+  ;;
+
+  let to_rpc_style caller =
+    Nonempty_list.map caller ~f:(fun { dispatch; rpc } ->
+      { rpc
+      ; dispatch =
+          (fun conn query ->
+            dispatch conn query
+            >>| Rpc_result.or_error
+                  ~rpc_description:(Generic_rpc.description rpc)
+                  ~connection_description:(Rpc.Connection.description conn)
+                  ~connection_close_started:
+                    (Rpc.Connection.close_reason conn ~on_close:`started))
+      })
   ;;
 end
 
@@ -168,6 +182,59 @@ module Pipe_rpc = struct
     >>= Tilde_f.of_local_k Result.map
     >>= Tuple2.map_fst
     >>= Pipe_extended.map_batched
+  ;;
+end
+
+module Pipe_rpc' = struct
+  open Async_rpc_kernel
+
+  let singleton rpc =
+    Nonempty_list.singleton { dispatch = Rpc.Pipe_rpc.dispatch' rpc; rpc = Pipe rpc }
+  ;;
+
+  let add = adder ~f:singleton
+  let map_query = map_query
+
+  let map_error t =
+    Tilde_f.Let_syntax.(
+      map_response t
+      >>= Deferred.map
+      >>= Tilde_f.of_local_k Result.map
+      >>= Tilde_f.of_local_k Result.map_error)
+  ;;
+
+  let filter_map_response t =
+    let open Tilde_f.Let_syntax in
+    map_response t
+    >>= Deferred.map
+    >>= Tilde_f.of_local_k Result.map
+    >>= Tilde_f.of_local_k Result.map
+    >>= Tuple2.map_fst
+    >>= Pipe.filter_map ?max_queue_length:None
+  ;;
+
+  let map_response t =
+    let open Tilde_f.Let_syntax in
+    map_response t
+    >>= Deferred.map
+    >>= Tilde_f.of_local_k Result.map
+    >>= Tilde_f.of_local_k Result.map
+    >>= Tuple2.map_fst
+    >>= Pipe_extended.map_batched
+  ;;
+
+  let to_pipe_rpc_style caller =
+    Nonempty_list.map caller ~f:(fun { dispatch; rpc } ->
+      { rpc
+      ; dispatch =
+          (fun conn query ->
+            dispatch conn query
+            >>| Rpc_result.or_error
+                  ~rpc_description:(Generic_rpc.description rpc)
+                  ~connection_description:(Rpc.Connection.description conn)
+                  ~connection_close_started:
+                    (Rpc.Connection.close_reason conn ~on_close:`started))
+      })
   ;;
 end
 

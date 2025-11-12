@@ -14,7 +14,6 @@ depends: [
   "async_kernel"
   "async_rpc_kernel"
   "core"
-  "core_kernel"
   "pipe_with_writer_error"
   "ppx_jane"
   "streamable"
