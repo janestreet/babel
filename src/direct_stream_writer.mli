@@ -46,6 +46,24 @@ module Expert : sig
     -> f:('b -> 'a option)
     -> id:Transformation_id.t
     -> 'b t
+
+  (** See [Rpc.Pipe_rpc.Direct_stream_writer.Expert.write_without_pushback]. Babel will
+      not perform any transformation on the input buffer. *)
+  val write_without_pushback
+    :  _ t
+    -> buf:Bigstring.t
+    -> pos:int
+    -> len:int
+    -> [ `Ok | `Closed ]
+
+  (** See [Rpc.Pipe_rpc.Direct_stream_writer.Expert.schedule_write]. Babel will not
+      perform any transformation on the input buffer. *)
+  val schedule_write
+    :  _ t
+    -> buf:Bigstring.t
+    -> pos:int
+    -> len:int
+    -> [ `Closed | `Flushed of unit Deferred.t global ]
 end
 
 (** Like [Rpc.Pipe_rpc.Direct_stream_writer.Group], but with the ability to maintain
@@ -98,6 +116,10 @@ module Group : sig
 
   (** Write a message to all direct writers in the group without waiting for flushed. *)
   val write_without_pushback : 'a t -> 'a -> unit
+
+  (** [flushed_or_closed t] is determined when the underlying writer for each member of
+      [t] is flushed or closed. *)
+  val flushed_or_closed : 'a t -> unit Deferred.t
 
   (** Number of elements in the group *)
   val length : _ t -> int

@@ -155,6 +155,10 @@ module Group = struct
       | None -> return ()
       | Some a -> Rpc.Pipe_rpc.Direct_stream_writer.Group.write group a
     ;;
+
+    let flushed_or_closed (T { group; _ }) =
+      Rpc.Pipe_rpc.Direct_stream_writer.Group.flushed_or_closed group
+    ;;
   end
 
   module Last_value : sig
@@ -250,6 +254,10 @@ module Group = struct
     all_written
   ;;
 
+  let flushed_or_closed { subgroups; _ } =
+    Bag.to_list subgroups |> List.map ~f:Subgroup.flushed_or_closed |> Deferred.all_unit
+  ;;
+
   let length t =
     Bag.sum (module Int) t.subgroups ~f:(fun (Subgroup.T { group; _ }) ->
       Rpc.Pipe_rpc.Direct_stream_writer.Group.length group)
@@ -266,4 +274,12 @@ module Expert = struct
   let create_witnessed = create_witnessed
   let map_input_with_id = map_input_with_id
   let filter_map_input_with_id = filter_map_input_with_id
+
+  let write_without_pushback (T { writer; _ }) ~buf ~pos ~len =
+    Rpc.Pipe_rpc.Direct_stream_writer.Expert.write_without_pushback writer ~buf ~pos ~len
+  ;;
+
+  let schedule_write (T { writer; _ }) ~buf ~pos ~len =
+    Rpc.Pipe_rpc.Direct_stream_writer.Expert.schedule_write writer ~buf ~pos ~len
+  ;;
 end
