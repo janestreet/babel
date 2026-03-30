@@ -448,3 +448,38 @@ module Streamable_state_rpc = struct
       >>= Pipe.filter_map ?max_queue_length:None)
   ;;
 end
+
+module With_expert_responder = struct
+  open Async_rpc_kernel
+  module Expert_responder = Expert_responder
+
+  let singleton rpc =
+    let description = Rpc.Rpc.description rpc in
+    singleton
+      description
+      { implement =
+          (fun ?on_exception f ->
+            Rpc.Rpc.Expert.implement
+              ?on_exception
+              rpc
+              (fun connection_state responder buf ~pos ~len ->
+                 let query =
+                   let pos_ref = ref pos in
+                   let query = (Rpc.Rpc.bin_query rpc).reader.read buf ~pos_ref in
+                   if !pos_ref <> pos + len
+                   then
+                     failwithf
+                       "message length (%d) did not match expected length (%d)"
+                       (!pos_ref - pos)
+                       len
+                       ();
+                   query
+                 in
+                 f connection_state query (Expert_responder.Private.create responder)))
+      ; rpc = Rpc rpc
+      }
+  ;;
+
+  let add = adder ~f:singleton
+  let map_query = map_query
+end

@@ -459,6 +459,42 @@ module Streamable_state_rpc : sig
     -> ('q, 's, 'u2) implementation t
 end
 
+(** High level functions for working with callees in the style of
+    [Async.Rpc.Rpc.Expert.implement].
+
+    This isn't quite a drop-in replacement because users will need to use Babel's
+    [Expert_responder] instead of [Rpc.Rpc.Expert.Responder], but most of the same
+    functions are supported.
+
+    Use this module when you have preserialized response data that you want to write
+    directly to the connection without re-serialization.
+
+    Note: [map_response] is not supported because the response is written directly as
+    preserialized bytes via [Expert_responder], so there is no typed response value to
+    transform. *)
+module With_expert_responder : sig
+  open Async_rpc_kernel
+  module Expert_responder = Expert_responder
+
+  type ('q, 'r) implementation :=
+    'q -> 'r Expert_responder.t -> Rpc.Rpc.Expert.implementation_result Deferred.t
+
+  (** Create a callee which can implement a given rpc. *)
+  val singleton : ('q, 'r) Rpc.Rpc.t -> ('q, 'r) implementation t
+
+  (** Extend a callee to be able to implement a given rpc. *)
+  val add
+    :  ('q, 'r) implementation t
+    -> rpc:('q, 'r) Rpc.Rpc.t
+    -> ('q, 'r) implementation t
+
+  (** Map over the query type of a callee. *)
+  val map_query
+    :  ('q1, 'r) implementation t
+    -> f:('q1 -> 'q2)
+    -> ('q2, 'r) implementation t
+end
+
 (** [map t ~f] transforms the model function supplied to [implement_multi]. Since in
     practice we are usually working with functions, it may be enlightening to think of the
     type as:
