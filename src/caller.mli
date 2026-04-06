@@ -380,6 +380,71 @@ module State_rpc : sig
 end
 
 (** High level functions for working with callers in the style of
+    [Async.Rpc.State_rpc.dispatch']. *)
+module State_rpc' : sig
+  open Async_rpc_kernel
+
+  type ('q, 's, 'u, 'e) dispatch :=
+    'q
+    -> ('s * 'u Pipe.Reader.t * Rpc.State_rpc.Metadata.t, 'e) Result.t Rpc_result.t
+         Deferred.t
+
+  (** Create a new caller supporting a single rpc. *)
+  val singleton : ('q, 's, 'u, 'e) Rpc.State_rpc.t -> ('q, 's, 'u, 'e) dispatch t
+
+  (** Add support for dispatching another rpc. [dispatch_multi] will prefer this rpc over
+      the ones the caller already supports. *)
+  val add
+    :  ('q, 's, 'u, 'e) dispatch t
+    -> rpc:('q, 's, 'u, 'e) Rpc.State_rpc.t
+    -> ('q, 's, 'u, 'e) dispatch t
+
+  (** A specialization of [map] for the query type of a protocol. *)
+  val map_query
+    :  ('q1, 's, 'u, 'e) dispatch t
+    -> f:('q2 -> 'q1)
+    -> ('q2, 's, 'u, 'e) dispatch t
+
+  (** A specialization of [map] for the state type of a protocol. *)
+  val map_state
+    :  ('q, 's1, 'u, 'e) dispatch t
+    -> f:('s1 -> 's2)
+    -> ('q, 's2, 'u, 'e) dispatch t
+
+  (** A specialization of [map] for the update type of a protocol.
+
+      Sometimes, [Caller.State_rpc'.map_update] is not sufficient. For example, sometimes
+      it might not be possible to convert the response to the desired type, in which case
+      it may be appropriate to drop the value from the pipe entirely. For such cases, use
+      [Caller.map_response] instead. It gives you access to the pipe itself, not just the
+      values inside it, allowing you to use something like [Pipe.filter_map]. *)
+  val map_update
+    :  ('q, 's, 'u1, 'e) dispatch t
+    -> f:('u1 -> 'u2)
+    -> ('q, 's, 'u2, 'e) dispatch t
+
+  (** Same as [map_update] but filters out some responses from the response pipe *)
+  val filter_map_update
+    :  ('q, 's, 'u1, 'e) dispatch t
+    -> f:('u1 -> 'u2 option)
+    -> ('q, 's, 'u2, 'e) dispatch t
+
+  (** A specialization of [map] for the error type of a protocol. *)
+  val map_error
+    :  ('q, 's, 'u, 'e1) dispatch t
+    -> f:('e1 -> 'e2)
+    -> ('q, 's, 'u, 'e2) dispatch t
+
+  (** Convert State_rpc' style caller to State_rpc style caller *)
+  val to_state_rpc_style
+    :  ('q, 's, 'u, 'e) dispatch t
+    -> ('q
+        -> ('s * 'u Pipe.Reader.t * Rpc.State_rpc.Metadata.t, 'e) Result.t Or_error.t
+             Deferred.t)
+         t
+end
+
+(** High level functions for working with callers in the style of
     [Async.Rpc.One_way.dispatch]. *)
 module One_way : sig
   open Async_rpc_kernel
@@ -472,6 +537,36 @@ module Streamable_plain_rpc : sig
 
   (** A specialization of [map] for the response type of a protocol. *)
   val map_response : ('q, 'r1) dispatch t -> f:('r1 -> 'r2) -> ('q, 'r2) dispatch t
+end
+
+(** High level functions for working with callers in the style of
+    [Streamable.Plain_rpc.dispatch_with_rpc_result].
+
+    There is no [Babel.Caller.Streamable_plain_rpc'.dispatch_multi]. Use the more general
+    [Babel.Caller.to_dispatch_fun]. *)
+module Streamable_plain_rpc' : sig
+  type ('q, 'r) dispatch := 'q -> 'r Or_error.t Rpc_result.t Deferred.t
+
+  (** Create a new caller supporting a single rpc. *)
+  val singleton : ('q, 'r) Streamable.Plain_rpc.t -> ('q, 'r) dispatch t
+
+  (** Add support for dispatching another rpc. [dispatch_multi] will prefer this rpc over
+      the ones the caller already supports. *)
+  val add
+    :  ('q, 'r) dispatch t
+    -> rpc:('q, 'r) Streamable.Plain_rpc.t
+    -> ('q, 'r) dispatch t
+
+  (** A specialization of [map] for the query type of a protocol. *)
+  val map_query : ('q1, 'r) dispatch t -> f:('q2 -> 'q1) -> ('q2, 'r) dispatch t
+
+  (** A specialization of [map] for the response type of a protocol. *)
+  val map_response : ('q, 'r1) dispatch t -> f:('r1 -> 'r2) -> ('q, 'r2) dispatch t
+
+  (** Convert Streamable_plain_rpc' style caller to Streamable_plain_rpc style caller *)
+  val to_streamable_plain_rpc_style
+    :  ('q, 'r) dispatch t
+    -> ('q -> 'r Or_error.t Or_error.t Deferred.t) t
 end
 
 (** High level functions for working with callers in the style of
