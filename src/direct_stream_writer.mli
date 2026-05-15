@@ -124,6 +124,9 @@ module Group : sig
   (** Number of elements in the group *)
   val length : _ t -> int
 
+  (** Close all writers in the group *)
+  val close_all : _ t -> unit
+
   module For_testing : sig
     val num_subgroups : _ t -> int
   end
