@@ -263,6 +263,12 @@ module Group = struct
       Rpc.Pipe_rpc.Direct_stream_writer.Group.length group)
   ;;
 
+  let close_all t =
+    Bag.iter t.subgroups ~f:(fun (Subgroup.T { group; _ }) ->
+      Rpc.Pipe_rpc.Direct_stream_writer.Group.to_list group
+      |> List.iter ~f:Rpc.Pipe_rpc.Direct_stream_writer.close)
+  ;;
+
   module For_testing = struct
     let num_subgroups t = Bag.length t.subgroups
   end

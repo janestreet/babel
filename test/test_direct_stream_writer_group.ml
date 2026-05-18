@@ -317,3 +317,23 @@ let%expect_test "[flushed_or_closed] waits for all subgroups to be flushed" =
   let%bind () = flushed in
   return ()
 ;;
+
+let%expect_test "[close_all] closes all writers" =
+  let callee =
+    Babel.Callee.Pipe_rpc_direct.singleton v1
+    |> Babel.Callee.Pipe_rpc_direct.map_response ~f:Stable.Response.V2.a
+    |> Babel.Callee.Pipe_rpc_direct.add ~rpc:v2
+  in
+  let group = Direct_stream_writer.Group.create () in
+  let implementations = make_implementations group callee in
+  let dispatch rpc = connect_and_dispatch implementations rpc in
+  let%bind a1 = dispatch v1 in
+  let%bind a2 = dispatch v2 in
+  (* Expect that calling [close_all] allows us to bind on [flushed_or_closed] and both
+     pipes being closed *)
+  Direct_stream_writer.Group.close_all group;
+  let%bind () = Direct_stream_writer.Group.flushed_or_closed group in
+  let%bind () = Pipe.closed a1 in
+  let%bind () = Pipe.closed a2 in
+  return ()
+;;
