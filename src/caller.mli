@@ -572,7 +572,10 @@ end
 (** High level functions for working with callers in the style of
     [Streamable.Pipe_rpc.dispatch]. *)
 module Streamable_pipe_rpc : sig
-  type ('q, 'r) dispatch := 'q -> 'r Pipe.Reader.t Or_error.t Or_error.t Deferred.t
+  open Async_rpc_kernel
+
+  type ('q, 'r) dispatch :=
+    'q -> ('r Pipe.Reader.t * Rpc.Pipe_rpc.Metadata.t) Or_error.t Or_error.t Deferred.t
 
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. To
       unsubscribe, you can close the pipe. *)
@@ -613,8 +616,11 @@ end
 (** High level functions for working with callers in the style of
     [Streamable.State_rpc.dispatch]. *)
 module Streamable_state_rpc : sig
+  open Async_rpc_kernel
+
   type ('q, 's, 'u) dispatch :=
-    'q -> ('s * 'u Pipe.Reader.t) Or_error.t Or_error.t Deferred.t
+    'q
+    -> ('s * 'u Pipe.Reader.t * Rpc.State_rpc.Metadata.t) Or_error.t Or_error.t Deferred.t
 
   (** Determine which supported dispatch strategy to use and invoke the chosen rpcs. To
       unsubscribe, you can close the pipe. *)
